@@ -13,6 +13,9 @@ type Props = {
   geminiModel: string;
   geminiVoiceName: string;
   interactionMode: InteractionMode;
+  screenShareState: "idle" | "starting" | "active" | "error";
+  screenShareError: string;
+  screenShareSourceLabel: string;
   podcastTurnCount: number;
   podcastYukitoVoiceName: string;
   podcastKiyokaVoiceName: string;
@@ -27,6 +30,8 @@ type Props = {
   onChangeGeminiModel: (model: string) => void;
   onChangeGeminiVoiceName: (voiceName: string) => void;
   onChangeInteractionMode: (mode: InteractionMode) => void;
+  onStartScreenShare: () => void;
+  onStopScreenShare: () => void;
   onChangePodcastTurnCount: (turnCount: number) => void;
   onChangePodcastYukitoVoiceName: (voiceName: string) => void;
   onChangePodcastKiyokaVoiceName: (voiceName: string) => void;
@@ -42,6 +47,9 @@ export const Menu = ({
   geminiModel,
   geminiVoiceName,
   interactionMode,
+  screenShareState,
+  screenShareError,
+  screenShareSourceLabel,
   podcastTurnCount,
   podcastYukitoVoiceName,
   podcastKiyokaVoiceName,
@@ -56,6 +64,8 @@ export const Menu = ({
   onChangeGeminiModel,
   onChangeGeminiVoiceName,
   onChangeInteractionMode,
+  onStartScreenShare,
+  onStopScreenShare,
   onChangePodcastTurnCount,
   onChangePodcastYukitoVoiceName,
   onChangePodcastKiyokaVoiceName,
@@ -158,6 +168,9 @@ export const Menu = ({
           geminiModel={geminiModel}
           geminiVoiceName={geminiVoiceName}
           interactionMode={interactionMode}
+          screenShareState={screenShareState}
+          screenShareError={screenShareError}
+          screenShareSourceLabel={screenShareSourceLabel}
           podcastTurnCount={podcastTurnCount}
           podcastYukitoVoiceName={podcastYukitoVoiceName}
           podcastKiyokaVoiceName={podcastKiyokaVoiceName}
@@ -169,6 +182,8 @@ export const Menu = ({
           onChangeGeminiModel={handleGeminiModelChange}
           onChangeGeminiVoiceName={handleGeminiVoiceNameChange}
           onChangeInteractionMode={onChangeInteractionMode}
+          onStartScreenShare={onStartScreenShare}
+          onStopScreenShare={onStopScreenShare}
           onChangePodcastTurnCount={onChangePodcastTurnCount}
           onChangePodcastYukitoVoiceName={onChangePodcastYukitoVoiceName}
           onChangePodcastKiyokaVoiceName={onChangePodcastKiyokaVoiceName}

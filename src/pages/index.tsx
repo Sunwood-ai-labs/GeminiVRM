@@ -93,6 +93,8 @@ const CHAT_VRM_PARAMS_STORAGE_KEY = "chatVRMParams";
 const YOUTUBE_AUTH_SESSION_STORAGE_KEY = "youtubeAuthSessionV1";
 const YOUTUBE_AUTH_SESSION_LEEWAY_MS = 30000;
 
+type ScreenShareState = "idle" | "starting" | "active" | "error";
+
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
@@ -126,6 +128,10 @@ export default function Home() {
   const [assistantSpeakerName, setAssistantSpeakerName] = useState("");
   const [activePodcastSpeakerId, setActivePodcastSpeakerId] =
     useState<PodcastSpeakerId | null>(null);
+  const [screenShareState, setScreenShareState] =
+    useState<ScreenShareState>("idle");
+  const [screenShareError, setScreenShareError] = useState("");
+  const [screenShareSourceLabel, setScreenShareSourceLabel] = useState("");
 
   const [youtubeClientId, setYoutubeClientId] = useState(
     process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
@@ -175,6 +181,7 @@ export default function Home() {
   const youtubeAutoReplyInFlightRef = useRef(false);
   const isYoutubeAutoReplyEnabledRef = useRef(isYoutubeAutoReplyEnabled);
   const restoredYoutubeAccessTokenRef = useRef<string | null>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
 
   interactionModeRef.current = interactionMode;
   podcastTurnCountRef.current = podcastTurnCount;
@@ -189,6 +196,92 @@ export default function Home() {
   useEffect(() => {
     isYoutubeAutoReplyEnabledRef.current = isYoutubeAutoReplyEnabled;
   }, [isYoutubeAutoReplyEnabled]);
+
+  const resetScreenShare = useCallback(
+    (nextState: ScreenShareState, nextError = "") => {
+      const stream = screenShareStreamRef.current;
+      screenShareStreamRef.current = null;
+      stopMediaStream(stream);
+      setScreenShareState(nextState);
+      setScreenShareError(nextError);
+      setScreenShareSourceLabel("");
+    },
+    [],
+  );
+
+  const stopScreenShare = useCallback(() => {
+    resetScreenShare("idle");
+  }, [resetScreenShare]);
+
+  const handleScreenShareTrackEnded = useCallback(() => {
+    resetScreenShare("idle");
+  }, [resetScreenShare]);
+
+  const startScreenShare = useCallback(async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setScreenShareState("error");
+      setScreenShareError("This browser does not support screen sharing.");
+      setScreenShareSourceLabel("");
+      return;
+    }
+
+    if (screenShareStreamRef.current) {
+      stopMediaStream(screenShareStreamRef.current);
+      screenShareStreamRef.current = null;
+    }
+
+    setScreenShareState("starting");
+    setScreenShareError("");
+    setScreenShareSourceLabel("");
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: {
+            ideal: 1,
+            max: 1,
+          },
+        },
+        audio: false,
+      });
+      const videoTrack = stream.getVideoTracks()[0];
+
+      if (!videoTrack) {
+        stopMediaStream(stream);
+        throw new Error("The selected screen share source has no video track.");
+      }
+
+      videoTrack.onended = () => {
+        handleScreenShareTrackEnded();
+      };
+      screenShareStreamRef.current = stream;
+      setScreenShareState("active");
+      setScreenShareError("");
+      setScreenShareSourceLabel(videoTrack.label || "Shared screen");
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        (error.name === "NotAllowedError" || error.name === "AbortError")
+      ) {
+        resetScreenShare("idle");
+        return;
+      }
+
+      resetScreenShare(
+        "error",
+        error instanceof Error
+          ? error.message
+          : "Failed to start screen sharing.",
+      );
+    }
+  }, [handleScreenShareTrackEnded, resetScreenShare]);
+
+  useEffect(() => {
+    return () => {
+      stopMediaStream(screenShareStreamRef.current);
+      screenShareStreamRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const rawChatParams = window.localStorage.getItem(
@@ -475,6 +568,14 @@ export default function Home() {
         return false;
       }
 
+      const activeScreenShareStream =
+        interactionMode === "chat" &&
+        screenShareStreamRef.current?.getVideoTracks().some(
+          (track) => track.readyState === "live",
+        )
+          ? screenShareStreamRef.current
+          : null;
+
       const preparedUserMessage = {
         ...nextUserMessage,
         content: trimmedContent,
@@ -484,7 +585,11 @@ export default function Home() {
       setChatProcessing(true);
       setAssistantSpeakerName("CHARACTER");
       setAssistantMessage("");
-      setAssistantStatus("Connecting to Gemini Live...");
+      setAssistantStatus(
+        activeScreenShareStream
+          ? "Connecting to Gemini Live with screen share..."
+          : "Connecting to Gemini Live...",
+      );
 
       const messageLog: Message[] = [
         ...chatLogRef.current,
@@ -505,6 +610,7 @@ export default function Home() {
           systemPrompt,
           model: geminiModel,
           voiceName: geminiVoiceName,
+          screenShareStream: activeScreenShareStream,
           onAudioChunk: (chunk) => {
             if (!hasStartedAudio) {
               hasStartedAudio = true;
@@ -554,7 +660,14 @@ export default function Home() {
         setChatProcessing(false);
       }
     },
-    [geminiApiKey, geminiModel, geminiVoiceName, systemPrompt, viewer.model],
+    [
+      geminiApiKey,
+      geminiModel,
+      geminiVoiceName,
+      interactionMode,
+      systemPrompt,
+      viewer.model,
+    ],
   );
 
   const startPodcastConversation = useCallback(
@@ -1880,8 +1993,9 @@ export default function Home() {
   return (
     <div className="relative min-h-[100svh] font-M_PLUS_2">
       <Meta />
-      {isYoutubeRelayMode ? (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex justify-center px-16">
+      {isYoutubeRelayMode || screenShareState === "active" ? (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex flex-col items-center gap-8 px-16">
+          {isYoutubeRelayMode ? (
           <div
             className={`rounded-full border border-white/60 px-16 py-8 text-xs font-bold uppercase tracking-[0.24em] shadow-lg backdrop-blur ${
               youtubeReceiveState === "listening"
@@ -1897,6 +2011,12 @@ export default function Home() {
               ? `YouTube Relay - ${selectedYoutubeBroadcast.title}`
               : "YouTube Relay - Waiting for broadcast"}
           </div>
+          ) : null}
+          {screenShareState === "active" ? (
+            <div className="rounded-full border border-white/60 bg-sky-500/90 px-16 py-8 text-xs font-bold uppercase tracking-[0.24em] text-white shadow-lg backdrop-blur">
+              Screen Share To Gemini
+            </div>
+          ) : null}
         </div>
       ) : null}
       <Introduction
@@ -1922,6 +2042,9 @@ export default function Home() {
         geminiModel={geminiModel}
         geminiVoiceName={geminiVoiceName}
         interactionMode={interactionMode}
+        screenShareState={screenShareState}
+        screenShareError={screenShareError}
+        screenShareSourceLabel={screenShareSourceLabel}
         podcastTurnCount={podcastTurnCount}
         podcastYukitoVoiceName={podcastYukitoVoiceName}
         podcastKiyokaVoiceName={podcastKiyokaVoiceName}
@@ -1935,6 +2058,8 @@ export default function Home() {
         onChangeGeminiModel={setGeminiModel}
         onChangeGeminiVoiceName={setGeminiVoiceName}
         onChangeInteractionMode={setInteractionMode}
+        onStartScreenShare={startScreenShare}
+        onStopScreenShare={stopScreenShare}
         onChangePodcastTurnCount={(nextTurnCount) =>
           setPodcastTurnCount(clampPodcastTurnCount(nextTurnCount))
         }
@@ -2383,4 +2508,13 @@ function updateEditableMessage(message: Message, nextText: string): Message {
     content: nextText,
     displayContent: undefined,
   };
+}
+
+function stopMediaStream(stream: MediaStream | null): void {
+  stream?.getTracks().forEach((track) => {
+    track.onended = null;
+    if (track.readyState === "live") {
+      track.stop();
+    }
+  });
 }
