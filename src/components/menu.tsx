@@ -7,6 +7,7 @@ import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import { AssistantText } from "./assistantText";
 import { BuiltInMotionId } from "@/features/vrmViewer/builtInMotions";
 import { InteractionMode } from "@/features/podcast/podcastConfig";
+import type { ScreenShareCaptureStats } from "@/features/chat/screenShareCapture";
 
 type Props = {
   geminiApiKey: string;
@@ -16,6 +17,7 @@ type Props = {
   screenShareState: "idle" | "starting" | "active" | "error";
   screenShareError: string;
   screenShareSourceLabel: string;
+  screenShareStats: ScreenShareCaptureStats;
   podcastTurnCount: number;
   podcastYukitoVoiceName: string;
   podcastKiyokaVoiceName: string;
@@ -50,6 +52,7 @@ export const Menu = ({
   screenShareState,
   screenShareError,
   screenShareSourceLabel,
+  screenShareStats,
   podcastTurnCount,
   podcastYukitoVoiceName,
   podcastKiyokaVoiceName,
@@ -171,6 +174,7 @@ export const Menu = ({
           screenShareState={screenShareState}
           screenShareError={screenShareError}
           screenShareSourceLabel={screenShareSourceLabel}
+          screenShareStats={screenShareStats}
           podcastTurnCount={podcastTurnCount}
           podcastYukitoVoiceName={podcastYukitoVoiceName}
           podcastKiyokaVoiceName={podcastKiyokaVoiceName}

@@ -14,11 +14,12 @@ import {
   resolveGeminiVoiceName,
 } from "../chat/geminiLiveConfig";
 import {
-  hasActiveScreenShareTrack,
+  hasActiveScreenShareSession,
   startScreenShareRelay,
   type GeminiLiveAudioChunk,
   type GeminiLiveTurnResult,
 } from "../chat/geminiLiveChat";
+import type { ScreenShareCaptureSession } from "../chat/screenShareCapture";
 
 export type GeminiLiveAudioRelayResponse = GeminiLiveTurnResult & {
   inputTranscript: string;
@@ -33,7 +34,7 @@ type GeminiLiveAudioRelayParams = {
   relayAudioMimeType: string;
   model?: string;
   voiceName?: string;
-  screenShareStream?: MediaStream | null;
+  screenShareSession?: ScreenShareCaptureSession | null;
   onPartialTranscript?: (transcript: string) => void;
   onAudioChunk?: (chunk: GeminiLiveAudioChunk) => void;
 };
@@ -57,7 +58,7 @@ export async function createGeminiLiveAudioRelaySession(
     systemPrompt,
     model = DEFAULT_GEMINI_LIVE_MODEL,
     voiceName = DEFAULT_GEMINI_VOICE_NAME,
-    screenShareStream,
+    screenShareSession,
     onPartialTranscript,
     onAudioChunk,
   } = params;
@@ -120,6 +121,8 @@ export async function createGeminiLiveAudioRelaySession(
     new Error(
       error instanceof Error ? error.message : String(error ?? "Gemini Live error.")
     );
+  const hasScreenShare =
+    !!screenShareSession && hasActiveScreenShareSession(screenShareSession);
 
   session = await ai.live.connect({
     model,
@@ -179,7 +182,7 @@ export async function createGeminiLiveAudioRelaySession(
         },
         activityHandling: ActivityHandling.NO_INTERRUPTION,
         turnCoverage:
-          screenShareStream && hasActiveScreenShareTrack(screenShareStream)
+          hasScreenShare
             ? TurnCoverage.TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO
             : TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
       },
@@ -192,12 +195,18 @@ export async function createGeminiLiveAudioRelaySession(
       },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
-      systemInstruction: systemPrompt,
+      systemInstruction: prependScreenShareSystemInstruction(
+        systemPrompt,
+        hasScreenShare,
+      ),
     },
   });
 
-  if (screenShareStream && hasActiveScreenShareTrack(screenShareStream)) {
-    stopScreenShareRelay = await startScreenShareRelay(session, screenShareStream);
+  if (hasScreenShare) {
+    stopScreenShareRelay = await startScreenShareRelay(
+      session,
+      screenShareSession!,
+    );
   }
 
   const normalizeAndSendRelayAudioChunk = (
@@ -317,7 +326,7 @@ export async function getGeminiLiveAudioRelayResponse({
   relayAudioMimeType,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
-  screenShareStream,
+  screenShareSession,
   onPartialTranscript,
   onAudioChunk,
 }: GeminiLiveAudioRelayParams): Promise<GeminiLiveAudioRelayResponse> {
@@ -327,7 +336,7 @@ export async function getGeminiLiveAudioRelayResponse({
     model,
     systemPrompt,
     voiceName,
-    screenShareStream,
+    screenShareSession,
     onAudioChunk,
     onPartialTranscript,
   });
@@ -604,4 +613,21 @@ function encodeInt16Samples(samples: number[]): Uint8Array {
   });
 
   return bytes;
+}
+
+function prependScreenShareSystemInstruction(
+  instruction: string,
+  hasScreenShare: boolean,
+): string {
+  if (!hasScreenShare) {
+    return instruction;
+  }
+
+  return [
+    instruction,
+    "",
+    "The user is also sharing live screen frames for this turn.",
+    "Treat the shared screen as primary context when it is relevant to the request.",
+    "Before the main answer, mention one concrete visible detail from the shared screen when possible so the user knows the visual input reached you.",
+  ].join("\n");
 }

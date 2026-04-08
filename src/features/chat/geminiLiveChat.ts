@@ -11,6 +11,10 @@ import {
   DEFAULT_GEMINI_VOICE_NAME,
   resolveGeminiVoiceName,
 } from "./geminiLiveConfig";
+import type {
+  ScreenShareCaptureFrame,
+  ScreenShareCaptureSession,
+} from "./screenShareCapture";
 
 export type GeminiLiveTurnResult = {
   transcript: string;
@@ -31,7 +35,7 @@ type GeminiLiveChatParams = {
   systemPrompt: string;
   model?: string;
   voiceName?: string;
-  screenShareStream?: MediaStream | null;
+  screenShareSession?: ScreenShareCaptureSession | null;
   onPartialTranscript?: (transcript: string) => void;
   onAudioChunk?: (chunk: GeminiLiveAudioChunk) => void;
 };
@@ -42,7 +46,7 @@ export async function getGeminiLiveChatResponse({
   systemPrompt,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
-  screenShareStream,
+  screenShareSession,
   onPartialTranscript,
   onAudioChunk,
 }: GeminiLiveChatParams): Promise<GeminiLiveChatResponse> {
@@ -56,7 +60,7 @@ export async function getGeminiLiveChatResponse({
     model,
     onAudioChunk,
     onPartialTranscript,
-    screenShareStream,
+    screenShareSession,
     systemPrompt,
     voiceName,
   });
@@ -68,7 +72,7 @@ async function runGeminiLiveChat({
   systemPrompt,
   model,
   voiceName,
-  screenShareStream,
+  screenShareSession,
   onAudioChunk,
   onPartialTranscript,
 }: Required<
@@ -78,7 +82,7 @@ async function runGeminiLiveChat({
   >
 > &
   Pick<GeminiLiveChatParams, "onAudioChunk" | "onPartialTranscript"> & {
-    screenShareStream?: MediaStream | null;
+    screenShareSession?: ScreenShareCaptureSession | null;
   }
 ): Promise<GeminiLiveChatResponse> {
   const ai = new GoogleGenAI({
@@ -181,10 +185,10 @@ async function runGeminiLiveChat({
   });
 
   try {
-    if (screenShareStream && hasActiveScreenShareTrack(screenShareStream)) {
+    if (screenShareSession && hasActiveScreenShareSession(screenShareSession)) {
       stopScreenShareRelay = await startScreenShareRelay(
         session,
-        screenShareStream,
+        screenShareSession,
       );
     }
 
@@ -299,7 +303,8 @@ function prependScreenShareContext(text: string, hasScreenShare: boolean): strin
 
   return [
     "The user is also sharing live screen frames for this turn.",
-    "Use that visual context when it is relevant.",
+    "Treat the shared screen as primary context when it is relevant to the request.",
+    "Before the main answer, mention one concrete visible detail from the shared screen when possible so the user knows the visual input reached you.",
     "",
     text,
   ].join("\n");
@@ -319,220 +324,42 @@ export type GeminiLiveVideoSession = {
 
 export async function startScreenShareRelay(
   session: GeminiLiveVideoSession,
-  screenShareStream: MediaStream,
+  screenShareSession: ScreenShareCaptureSession,
 ): Promise<() => Promise<void>> {
-  const videoTrack = screenShareStream
-    .getVideoTracks()
-    .find((track) => track.readyState === "live");
+  const recentFrames = screenShareSession.getRecentFrames(4);
+  recentFrames.forEach((frame) => {
+    sendScreenShareFrame(session, screenShareSession, frame);
+  });
 
-  if (!videoTrack) {
-    throw new Error("Screen share video track is not active.");
-  }
-
-  const relayStream = new MediaStream([videoTrack]);
-  const videoElement = document.createElement("video");
-  videoElement.muted = true;
-  videoElement.playsInline = true;
-  videoElement.srcObject = relayStream;
-
-  const frameCanvas = document.createElement("canvas");
-  const abortController = new AbortController();
-
-  await waitForScreenShareVideo(videoElement);
-  await sendScreenShareFrame(session, videoElement, frameCanvas);
-
-  const loopPromise = streamScreenShareFrames({
-    abortSignal: abortController.signal,
-    canvas: frameCanvas,
-    session,
-    videoElement,
-    videoTrack,
+  const unsubscribe = screenShareSession.subscribe((frame) => {
+    sendScreenShareFrame(session, screenShareSession, frame);
   });
 
   return async () => {
-    abortController.abort();
-
-    try {
-      await loopPromise;
-    } catch {
-      // Ignore best-effort frame loop shutdown failures.
-    }
-
-    videoElement.pause();
-    videoElement.srcObject = null;
+    unsubscribe();
   };
 }
 
-export function hasActiveScreenShareTrack(stream: MediaStream): boolean {
-  return stream
+export function hasActiveScreenShareSession(
+  screenShareSession: ScreenShareCaptureSession,
+): boolean {
+  return screenShareSession.stream
     .getVideoTracks()
     .some((track) => track.readyState === "live");
 }
 
-async function streamScreenShareFrames({
-  abortSignal,
-  canvas,
-  session,
-  videoElement,
-  videoTrack,
-}: {
-  abortSignal: AbortSignal;
-  canvas: HTMLCanvasElement;
-  session: GeminiLiveVideoSession;
-  videoElement: HTMLVideoElement;
-  videoTrack: MediaStreamTrack;
-}): Promise<void> {
-  while (!abortSignal.aborted && videoTrack.readyState === "live") {
-    await waitForNextVideoFrame(abortSignal, 1000);
-    if (abortSignal.aborted || videoTrack.readyState !== "live") {
-      break;
-    }
-
-    await sendScreenShareFrame(session, videoElement, canvas);
-  }
-}
-
-async function waitForScreenShareVideo(videoElement: HTMLVideoElement): Promise<void> {
-  try {
-    await videoElement.play();
-  } catch {
-    // Muted display-media playback can still produce frames without autoplay.
-  }
-
-  if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("Screen share video stream did not become ready."));
-    }, 4000);
-
-    const handleLoadedMetadata = () => {
-      if (videoElement.videoWidth <= 0 || videoElement.videoHeight <= 0) {
-        return;
-      }
-
-      cleanup();
-      resolve();
-    };
-
-    const handleError = () => {
-      cleanup();
-      reject(new Error("Screen share video stream could not be read."));
-    };
-
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.removeEventListener("loadeddata", handleLoadedMetadata);
-      videoElement.removeEventListener("error", handleError);
-    };
-
-    videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-    videoElement.addEventListener("loadeddata", handleLoadedMetadata);
-    videoElement.addEventListener("error", handleError);
-  });
-}
-
-async function sendScreenShareFrame(
+function sendScreenShareFrame(
   session: GeminiLiveVideoSession,
-  videoElement: HTMLVideoElement,
-  canvas: HTMLCanvasElement,
-): Promise<void> {
-  const width = videoElement.videoWidth;
-  const height = videoElement.videoHeight;
-
-  if (width <= 0 || height <= 0) {
-    throw new Error("Screen share frame is not ready yet.");
-  }
-
-  const { scaledHeight, scaledWidth } = fitScreenShareFrame(width, height);
-  canvas.width = scaledWidth;
-  canvas.height = scaledHeight;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas 2D context is unavailable for screen sharing.");
-  }
-
-  context.drawImage(videoElement, 0, 0, scaledWidth, scaledHeight);
-
-  const frameBlob = await canvasToJpegBlob(canvas);
-  const frameBytes = new Uint8Array(await frameBlob.arrayBuffer());
+  screenShareSession: ScreenShareCaptureSession,
+  frame: ScreenShareCaptureFrame,
+): void {
   const video = {
-    data: encodeBase64(frameBytes),
-    mimeType: frameBlob.type || "image/jpeg",
+    data: frame.data,
+    mimeType: frame.mimeType,
   } as NonNullable<LiveSendRealtimeInputParameters["video"]>;
 
   session.sendRealtimeInput({
     video,
   });
-}
-
-function fitScreenShareFrame(width: number, height: number) {
-  const maxDimension = 1280;
-  const scale = Math.min(1, maxDimension / Math.max(width, height));
-
-  return {
-    scaledWidth: Math.max(1, Math.round(width * scale)),
-    scaledHeight: Math.max(1, Math.round(height * scale)),
-  };
-}
-
-function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("Failed to encode the screen share frame."));
-          return;
-        }
-
-        resolve(blob);
-      },
-      "image/jpeg",
-      0.85,
-    );
-  });
-}
-
-function waitForNextVideoFrame(
-  abortSignal: AbortSignal,
-  delayMs: number,
-): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (abortSignal.aborted) {
-      resolve();
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      resolve();
-    }, delayMs);
-
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      abortSignal.removeEventListener("abort", handleAbort);
-    };
-
-    const handleAbort = () => {
-      cleanup();
-      resolve();
-    };
-
-    abortSignal.addEventListener("abort", handleAbort, { once: true });
-  });
-}
-
-function encodeBase64(data: Uint8Array): string {
-  let binary = "";
-
-  for (let index = 0; index < data.byteLength; index += 1) {
-    binary += String.fromCharCode(data[index]);
-  }
-
-  return window.btoa(binary);
+  screenShareSession.markFrameStreamed();
 }

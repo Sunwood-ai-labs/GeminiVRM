@@ -15,6 +15,7 @@ import {
   BuiltInMotionId,
 } from "@/features/vrmViewer/builtInMotions";
 import { InteractionMode } from "@/features/podcast/podcastConfig";
+import type { ScreenShareCaptureStats } from "@/features/chat/screenShareCapture";
 
 type Props = {
   geminiApiKey: string;
@@ -24,6 +25,7 @@ type Props = {
   screenShareState: "idle" | "starting" | "active" | "error";
   screenShareError: string;
   screenShareSourceLabel: string;
+  screenShareStats: ScreenShareCaptureStats;
   podcastTurnCount: number;
   podcastYukitoVoiceName: string;
   podcastKiyokaVoiceName: string;
@@ -57,6 +59,7 @@ export const Settings = ({
   screenShareState,
   screenShareError,
   screenShareSourceLabel,
+  screenShareStats,
   podcastTurnCount,
   podcastYukitoVoiceName,
   podcastKiyokaVoiceName,
@@ -518,8 +521,9 @@ export const Settings = ({
                       </div>
                       <div className="mt-6 text-sm leading-relaxed text-text2">
                         Share a window, tab, or full display and Gemini will
-                        receive one JPEG frame per second during character chat
-                        turns.
+                        receive one JPEG frame per second. Recent shared frames
+                        are buffered continuously and replayed into each Gemini
+                        turn before live streaming resumes.
                       </div>
                     </div>
                     <div
@@ -546,6 +550,34 @@ export const Settings = ({
                     {screenShareState === "active"
                       ? `Source: ${screenShareSourceLabel || "Shared screen"}`
                       : "Gemini Live caps audio+video sessions to about 2 minutes, and Live video input is limited to 1 frame per second."}
+                  </div>
+                  <div className="mt-8 grid gap-8 text-sm text-text2 md:grid-cols-2">
+                    <div>
+                      Captured frames: <strong>{screenShareStats.capturedFrameCount}</strong>
+                      {" / Buffered: "}
+                      <strong>{screenShareStats.bufferedFrameCount}</strong>
+                    </div>
+                    <div>
+                      Sent to Gemini: <strong>{screenShareStats.streamedFrameCount}</strong>
+                    </div>
+                    <div>
+                      Last capture:{" "}
+                      <strong>{formatScreenShareTimestamp(screenShareStats.lastCapturedAt)}</strong>
+                    </div>
+                    <div>
+                      Last send:{" "}
+                      <strong>{formatScreenShareTimestamp(screenShareStats.lastStreamedAt)}</strong>
+                    </div>
+                    <div>
+                      Last frame:{" "}
+                      <strong>
+                        {formatScreenShareFrameStats(
+                          screenShareStats.lastFrameWidth,
+                          screenShareStats.lastFrameHeight,
+                          screenShareStats.lastFrameByteLength,
+                        )}
+                      </strong>
+                    </div>
                   </div>
                   {interactionMode === "podcast" ? (
                     <div className="mt-8 text-sm text-text2">
@@ -702,3 +734,27 @@ export const Settings = ({
     </div>
   );
 };
+
+function formatScreenShareFrameStats(
+  width: number,
+  height: number,
+  byteLength: number,
+) {
+  if (width <= 0 || height <= 0 || byteLength <= 0) {
+    return "No frame yet";
+  }
+
+  return `${width}x${height}, ${Math.max(1, Math.round(byteLength / 1024))} KB`;
+}
+
+function formatScreenShareTimestamp(timestamp: number | null) {
+  if (!timestamp) {
+    return "Not yet";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(timestamp));
+}
