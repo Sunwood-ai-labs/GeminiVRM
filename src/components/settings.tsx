@@ -549,8 +549,10 @@ export const Settings = ({
                   </div>
                   {interactionMode === "podcast" ? (
                     <div className="mt-8 text-sm text-text2">
-                      Podcast mode does not forward video frames yet, so screen
-                      sharing is only used in Character chat.
+                      Podcast mode now forwards the shared screen into each
+                      Gemini turn. While screen sharing is active, the podcast
+                      relay uses the safer per-turn path instead of relay
+                      prewarming.
                     </div>
                   ) : null}
                   {screenShareError ? (
@@ -566,10 +568,7 @@ export const Settings = ({
                     ) : (
                       <TextButton
                         onClick={onStartScreenShare}
-                        disabled={
-                          screenShareState === "starting" ||
-                          interactionMode === "podcast"
-                        }
+                        disabled={screenShareState === "starting"}
                       >
                         {screenShareState === "starting"
                           ? "Starting..."

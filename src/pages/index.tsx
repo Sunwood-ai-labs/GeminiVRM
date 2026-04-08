@@ -698,6 +698,14 @@ export default function Home() {
       }
 
       const relayMode = resolvePodcastRelayMode();
+      const activeScreenShareStream =
+        screenShareStreamRef.current?.getVideoTracks().some(
+          (track) => track.readyState === "live",
+        )
+          ? screenShareStreamRef.current
+          : null;
+      const usePreparedRelay =
+        relayMode === "streaming" && activeScreenShareStream == null;
       clearPodcastDebugEvents();
       const runToken = ++podcastRunTokenRef.current;
       podcastTurnsRef.current = [];
@@ -984,7 +992,7 @@ export default function Home() {
           let responsePath: "opening" | "prepared" | "batch" =
             latestPartnerTurn == null
               ? "opening"
-              : preparedSessionForCurrentTurn
+              : preparedSessionForCurrentTurn && usePreparedRelay
                 ? "prepared"
                 : "batch";
 
@@ -1022,7 +1030,7 @@ export default function Home() {
 
           const nextSpeaker =
             podcastParticipants[nextSpeakerId];
-          if (relayMode === "streaming" && turnIndex < podcastTurnCount - 1) {
+          if (usePreparedRelay && turnIndex < podcastTurnCount - 1) {
             preparedSessionForFollowingTurn = createPreparedRelaySession(
               nextSpeaker,
               speaker,
@@ -1106,6 +1114,7 @@ export default function Home() {
               relayAudioMimeType: latestPartnerTurn.audioMimeType,
               model: geminiModel,
               voiceName: speaker.voiceName,
+              screenShareStream: activeScreenShareStream,
               onAudioChunk: (chunk) => {
                 if (!hasStartedAudio) {
                   hasStartedAudio = true;
@@ -1184,6 +1193,7 @@ export default function Home() {
                   systemPrompt: speaker.systemPrompt,
                   model: geminiModel,
                   voiceName: speaker.voiceName,
+                  screenShareStream: activeScreenShareStream,
                   onAudioChunk: (chunk) => {
                     if (!hasStartedAudio) {
                       hasStartedAudio = true;

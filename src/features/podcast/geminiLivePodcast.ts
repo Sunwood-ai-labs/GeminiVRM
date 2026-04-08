@@ -14,6 +14,8 @@ import {
   resolveGeminiVoiceName,
 } from "../chat/geminiLiveConfig";
 import {
+  hasActiveScreenShareTrack,
+  startScreenShareRelay,
   type GeminiLiveAudioChunk,
   type GeminiLiveTurnResult,
 } from "../chat/geminiLiveChat";
@@ -31,6 +33,7 @@ type GeminiLiveAudioRelayParams = {
   relayAudioMimeType: string;
   model?: string;
   voiceName?: string;
+  screenShareStream?: MediaStream | null;
   onPartialTranscript?: (transcript: string) => void;
   onAudioChunk?: (chunk: GeminiLiveAudioChunk) => void;
 };
@@ -54,6 +57,7 @@ export async function createGeminiLiveAudioRelaySession(
     systemPrompt,
     model = DEFAULT_GEMINI_LIVE_MODEL,
     voiceName = DEFAULT_GEMINI_VOICE_NAME,
+    screenShareStream,
     onPartialTranscript,
     onAudioChunk,
   } = params;
@@ -75,6 +79,7 @@ export async function createGeminiLiveAudioRelaySession(
   const resolvedVoiceName = resolveGeminiVoiceName(voiceName);
   const relayAudioNormalizer = createRelayAudioStreamNormalizer();
   let session: Awaited<ReturnType<typeof ai.live.connect>> | undefined;
+  let stopScreenShareRelay: (() => Promise<void>) | undefined;
   let audioStreamEndResolve!: () => void;
   let audioStreamEndReject!: (error: Error) => void;
   let completion: Promise<GeminiLiveAudioRelayResponse> | undefined;
@@ -173,7 +178,10 @@ export async function createGeminiLiveAudioRelaySession(
           disabled: true,
         },
         activityHandling: ActivityHandling.NO_INTERRUPTION,
-        turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+        turnCoverage:
+          screenShareStream && hasActiveScreenShareTrack(screenShareStream)
+            ? TurnCoverage.TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO
+            : TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
       },
       speechConfig: {
         voiceConfig: {
@@ -187,6 +195,10 @@ export async function createGeminiLiveAudioRelaySession(
       systemInstruction: systemPrompt,
     },
   });
+
+  if (screenShareStream && hasActiveScreenShareTrack(screenShareStream)) {
+    stopScreenShareRelay = await startScreenShareRelay(session, screenShareStream);
+  }
 
   const normalizeAndSendRelayAudioChunk = (
     audioBytes: Uint8Array,
@@ -259,6 +271,7 @@ export async function createGeminiLiveAudioRelaySession(
 
         await turnFinished;
       } finally {
+        await stopScreenShareRelay?.();
         try {
           session?.close();
         } catch {
@@ -304,6 +317,7 @@ export async function getGeminiLiveAudioRelayResponse({
   relayAudioMimeType,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
+  screenShareStream,
   onPartialTranscript,
   onAudioChunk,
 }: GeminiLiveAudioRelayParams): Promise<GeminiLiveAudioRelayResponse> {
@@ -313,6 +327,7 @@ export async function getGeminiLiveAudioRelayResponse({
     model,
     systemPrompt,
     voiceName,
+    screenShareStream,
     onAudioChunk,
     onPartialTranscript,
   });

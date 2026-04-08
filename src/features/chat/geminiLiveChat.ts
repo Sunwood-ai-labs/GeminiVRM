@@ -313,12 +313,12 @@ function getRealtimeSpeakerLabel(message: Message): string {
   return message.name?.trim() || "User";
 }
 
-type LiveVideoSession = {
+export type GeminiLiveVideoSession = {
   sendRealtimeInput: (params: LiveSendRealtimeInputParameters) => void;
 };
 
-async function startScreenShareRelay(
-  session: LiveVideoSession,
+export async function startScreenShareRelay(
+  session: GeminiLiveVideoSession,
   screenShareStream: MediaStream,
 ): Promise<() => Promise<void>> {
   const videoTrack = screenShareStream
@@ -363,7 +363,7 @@ async function startScreenShareRelay(
   };
 }
 
-function hasActiveScreenShareTrack(stream: MediaStream): boolean {
+export function hasActiveScreenShareTrack(stream: MediaStream): boolean {
   return stream
     .getVideoTracks()
     .some((track) => track.readyState === "live");
@@ -378,7 +378,7 @@ async function streamScreenShareFrames({
 }: {
   abortSignal: AbortSignal;
   canvas: HTMLCanvasElement;
-  session: LiveVideoSession;
+  session: GeminiLiveVideoSession;
   videoElement: HTMLVideoElement;
   videoTrack: MediaStreamTrack;
 }): Promise<void> {
@@ -437,7 +437,7 @@ async function waitForScreenShareVideo(videoElement: HTMLVideoElement): Promise<
 }
 
 async function sendScreenShareFrame(
-  session: LiveVideoSession,
+  session: GeminiLiveVideoSession,
   videoElement: HTMLVideoElement,
   canvas: HTMLCanvasElement,
 ): Promise<void> {
