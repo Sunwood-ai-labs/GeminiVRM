@@ -19,7 +19,7 @@ export type ScreenShareCaptureStats = {
 };
 
 export type ScreenShareCaptureSession = {
-  getRecentFrames: (limit?: number) => ScreenShareCaptureFrame[];
+  getLatestFrame: () => ScreenShareCaptureFrame | null;
   getStats: () => ScreenShareCaptureStats;
   markFrameStreamed: (count?: number) => void;
   stop: () => void;
@@ -31,13 +31,12 @@ export type ScreenShareCaptureSession = {
 
 type CreateScreenShareCaptureSessionParams = {
   frameIntervalMs?: number;
-  maxBufferedFrames?: number;
+  onFrame?: (frame: ScreenShareCaptureFrame | null) => void;
   onStatsChange?: (stats: ScreenShareCaptureStats) => void;
   stream: MediaStream;
 };
 
 const DEFAULT_FRAME_INTERVAL_MS = 1000;
-const DEFAULT_MAX_BUFFERED_FRAMES = 4;
 
 export const EMPTY_SCREEN_SHARE_CAPTURE_STATS: ScreenShareCaptureStats = {
   bufferedFrameCount: 0,
@@ -52,7 +51,7 @@ export const EMPTY_SCREEN_SHARE_CAPTURE_STATS: ScreenShareCaptureStats = {
 
 export async function createScreenShareCaptureSession({
   frameIntervalMs = DEFAULT_FRAME_INTERVAL_MS,
-  maxBufferedFrames = DEFAULT_MAX_BUFFERED_FRAMES,
+  onFrame,
   onStatsChange,
   stream,
 }: CreateScreenShareCaptureSessionParams): Promise<ScreenShareCaptureSession> {
@@ -73,7 +72,7 @@ export async function createScreenShareCaptureSession({
   const frameCanvas = document.createElement("canvas");
   const abortController = new AbortController();
   const listeners = new Set<(frame: ScreenShareCaptureFrame) => void>();
-  const recentFrames: ScreenShareCaptureFrame[] = [];
+  let latestFrame: ScreenShareCaptureFrame | null = null;
   let stats: ScreenShareCaptureStats = {
     ...EMPTY_SCREEN_SHARE_CAPTURE_STATS,
   };
@@ -96,13 +95,17 @@ export async function createScreenShareCaptureSession({
     notifyStatsChange();
   };
 
+  const updateLatestFrame = (frame: ScreenShareCaptureFrame | null) => {
+    latestFrame = frame;
+    onFrame?.(frame);
+  };
+
   await waitForScreenShareVideo(videoElement);
   await captureAndBroadcastFrame({
     canvas: frameCanvas,
     listeners,
-    maxBufferedFrames,
-    recentFrames,
     applyStats,
+    updateLatestFrame,
     videoElement,
   });
 
@@ -111,17 +114,15 @@ export async function createScreenShareCaptureSession({
     canvas: frameCanvas,
     frameIntervalMs,
     listeners,
-    maxBufferedFrames,
-    recentFrames,
     applyStats,
+    updateLatestFrame,
     videoElement,
     videoTrack,
   });
 
   return {
-    getRecentFrames(limit) {
-      const frameLimit = Math.max(limit ?? recentFrames.length, 0);
-      return frameLimit === 0 ? [] : recentFrames.slice(-frameLimit);
+    getLatestFrame() {
+      return latestFrame;
     },
     getStats() {
       return {
@@ -139,6 +140,7 @@ export async function createScreenShareCaptureSession({
     stop() {
       abortController.abort();
       listeners.clear();
+      updateLatestFrame(null);
       videoElement.pause();
       videoElement.srcObject = null;
     },
@@ -156,11 +158,10 @@ export async function createScreenShareCaptureSession({
 function setStatsFromFrame(
   stats: ScreenShareCaptureStats,
   frame: ScreenShareCaptureFrame,
-  bufferedFrameCount: number,
 ): ScreenShareCaptureStats {
   return {
     ...stats,
-    bufferedFrameCount,
+    bufferedFrameCount: 1,
     capturedFrameCount: stats.capturedFrameCount + 1,
     lastCapturedAt: frame.capturedAt,
     lastFrameByteLength: frame.byteLength,
@@ -174,9 +175,8 @@ async function captureFrameLoop({
   canvas,
   frameIntervalMs,
   listeners,
-  maxBufferedFrames,
-  recentFrames,
   applyStats,
+  updateLatestFrame,
   videoElement,
   videoTrack,
 }: {
@@ -184,13 +184,12 @@ async function captureFrameLoop({
   canvas: HTMLCanvasElement;
   frameIntervalMs: number;
   listeners: Set<(frame: ScreenShareCaptureFrame) => void>;
-  maxBufferedFrames: number;
-  recentFrames: ScreenShareCaptureFrame[];
   applyStats: (
     stats:
       | ScreenShareCaptureStats
       | ((currentStats: ScreenShareCaptureStats) => ScreenShareCaptureStats),
   ) => void;
+  updateLatestFrame: (frame: ScreenShareCaptureFrame | null) => void;
   videoElement: HTMLVideoElement;
   videoTrack: MediaStreamTrack;
 }): Promise<void> {
@@ -204,9 +203,8 @@ async function captureFrameLoop({
       await captureAndBroadcastFrame({
         canvas,
         listeners,
-        maxBufferedFrames,
-        recentFrames,
         applyStats,
+        updateLatestFrame,
         videoElement,
       });
     } catch {
@@ -218,30 +216,25 @@ async function captureFrameLoop({
 async function captureAndBroadcastFrame({
   canvas,
   listeners,
-  maxBufferedFrames,
-  recentFrames,
   applyStats,
+  updateLatestFrame,
   videoElement,
 }: {
   canvas: HTMLCanvasElement;
   listeners: Set<(frame: ScreenShareCaptureFrame) => void>;
-  maxBufferedFrames: number;
-  recentFrames: ScreenShareCaptureFrame[];
   applyStats: (
     stats:
       | ScreenShareCaptureStats
       | ((currentStats: ScreenShareCaptureStats) => ScreenShareCaptureStats),
   ) => void;
+  updateLatestFrame: (frame: ScreenShareCaptureFrame | null) => void;
   videoElement: HTMLVideoElement;
 }): Promise<void> {
   const frame = await captureScreenShareFrame(videoElement, canvas);
-  recentFrames.push(frame);
-  if (recentFrames.length > maxBufferedFrames) {
-    recentFrames.splice(0, recentFrames.length - maxBufferedFrames);
-  }
+  updateLatestFrame(frame);
 
   applyStats((currentStats) =>
-    setStatsFromFrame(currentStats, frame, recentFrames.length),
+    setStatsFromFrame(currentStats, frame),
   );
 
   listeners.forEach((listener) => {
@@ -392,4 +385,14 @@ function encodeBase64(data: Uint8Array): string {
   }
 
   return window.btoa(binary);
+}
+
+export function toScreenShareFrameDataUrl(
+  frame: ScreenShareCaptureFrame | null | undefined,
+): string | null {
+  if (!frame) {
+    return null;
+  }
+
+  return `data:${frame.mimeType};base64,${frame.data}`;
 }

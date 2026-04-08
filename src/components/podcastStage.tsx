@@ -6,6 +6,8 @@ import {
   type PodcastSpeakerId,
 } from "@/features/podcast/podcastConfig";
 import { buildUrl } from "@/utils/buildUrl";
+import type { ScreenShareCaptureFrame } from "@/features/chat/screenShareCapture";
+import { ScreenSharePreviewCard } from "./screenSharePreviewCard";
 
 export type PodcastViewerRegistry = Partial<Record<PodcastSpeakerId, Viewer>>;
 
@@ -14,6 +16,7 @@ export type PodcastStageProps = {
   activeSpeakerId?: PodcastSpeakerId | null;
   onViewersReady?: (viewers: PodcastViewerRegistry) => void;
   className?: string;
+  screenShareFrame?: ScreenShareCaptureFrame | null;
 };
 
 const PODCAST_VIEWER_CAMERA_STORAGE_KEY_PREFIX =
@@ -37,6 +40,7 @@ export function PodcastStage({
   activeSpeakerId = null,
   onViewersReady,
   className,
+  screenShareFrame = null,
 }: PodcastStageProps) {
   const [leftParticipant, rightParticipant] = participants;
   const onViewersReadyRef = useRef(onViewersReady);
@@ -80,6 +84,13 @@ export function PodcastStage({
         .filter(Boolean)
         .join(" ")}
     >
+      {screenShareFrame ? (
+        <ScreenSharePreviewCard
+          frame={screenShareFrame}
+          isCompact
+          label="Screen sent to Gemini"
+        />
+      ) : null}
       <div className="pointer-events-none absolute inset-x-0 top-14 z-20 flex justify-center px-12 sm:top-16 sm:px-16">
         <div className="inline-flex items-center gap-8 rounded-full border border-white/70 bg-black/45 px-12 py-7 text-[10px] font-bold uppercase tracking-[0.2em] text-white shadow-lg backdrop-blur-sm sm:px-16 sm:py-8 sm:text-xs sm:tracking-[0.24em]">
           <span className="h-2.5 w-2.5 rounded-full bg-rose-300 shadow-[0_0_12px_rgba(251,113,133,0.85)]" />

@@ -326,10 +326,10 @@ export async function startScreenShareRelay(
   session: GeminiLiveVideoSession,
   screenShareSession: ScreenShareCaptureSession,
 ): Promise<() => Promise<void>> {
-  const recentFrames = screenShareSession.getRecentFrames(4);
-  recentFrames.forEach((frame) => {
-    sendScreenShareFrame(session, screenShareSession, frame);
-  });
+  const latestFrame = screenShareSession.getLatestFrame();
+  if (latestFrame) {
+    sendScreenShareFrame(session, screenShareSession, latestFrame);
+  }
 
   const unsubscribe = screenShareSession.subscribe((frame) => {
     sendScreenShareFrame(session, screenShareSession, frame);

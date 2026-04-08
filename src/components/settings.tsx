@@ -521,9 +521,9 @@ export const Settings = ({
                       </div>
                       <div className="mt-6 text-sm leading-relaxed text-text2">
                         Share a window, tab, or full display and Gemini will
-                        receive one JPEG frame per second. Recent shared frames
-                        are buffered continuously and replayed into each Gemini
-                        turn before live streaming resumes.
+                        receive one JPEG frame per second. The latest live
+                        frame is shown on stage, attached to the log, and sent
+                        into each Gemini turn before streaming resumes.
                       </div>
                     </div>
                     <div
@@ -554,8 +554,8 @@ export const Settings = ({
                   <div className="mt-8 grid gap-8 text-sm text-text2 md:grid-cols-2">
                     <div>
                       Captured frames: <strong>{screenShareStats.capturedFrameCount}</strong>
-                      {" / Buffered: "}
-                      <strong>{screenShareStats.bufferedFrameCount}</strong>
+                      {" / Live frame ready: "}
+                      <strong>{screenShareStats.bufferedFrameCount > 0 ? "Yes" : "No"}</strong>
                     </div>
                     <div>
                       Sent to Gemini: <strong>{screenShareStats.streamedFrameCount}</strong>

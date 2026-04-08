@@ -1,8 +1,14 @@
 import { useContext, useCallback } from "react";
 import { ViewerContext } from "../features/vrmViewer/viewerContext";
 import { buildUrl } from "@/utils/buildUrl";
+import type { ScreenShareCaptureFrame } from "@/features/chat/screenShareCapture";
+import { ScreenSharePreviewCard } from "./screenSharePreviewCard";
 
-export default function VrmViewer() {
+type VrmViewerProps = {
+  screenShareFrame?: ScreenShareCaptureFrame | null;
+};
+
+export default function VrmViewer({ screenShareFrame = null }: VrmViewerProps) {
   const { viewer } = useContext(ViewerContext);
 
   const canvasRef = useCallback(
@@ -43,6 +49,9 @@ export default function VrmViewer() {
 
   return (
     <div className={"absolute top-0 left-0 z-0 w-screen h-[100svh]"}>
+      {screenShareFrame ? (
+        <ScreenSharePreviewCard frame={screenShareFrame} label="Screen sent to Gemini" />
+      ) : null}
       <canvas ref={canvasRef} className={"h-full w-full touch-none"}></canvas>
     </div>
   );

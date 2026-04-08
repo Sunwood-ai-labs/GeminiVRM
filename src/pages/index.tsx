@@ -27,6 +27,8 @@ import { getGeminiLiveChatResponse } from "@/features/chat/geminiLiveChat";
 import {
   createScreenShareCaptureSession,
   EMPTY_SCREEN_SHARE_CAPTURE_STATS,
+  toScreenShareFrameDataUrl,
+  type ScreenShareCaptureFrame,
   type ScreenShareCaptureSession,
   type ScreenShareCaptureStats,
 } from "@/features/chat/screenShareCapture";
@@ -138,6 +140,8 @@ export default function Home() {
     useState<ScreenShareState>("idle");
   const [screenShareError, setScreenShareError] = useState("");
   const [screenShareSourceLabel, setScreenShareSourceLabel] = useState("");
+  const [screenShareFrame, setScreenShareFrame] =
+    useState<ScreenShareCaptureFrame | null>(null);
   const [screenShareStats, setScreenShareStats] = useState<ScreenShareCaptureStats>(
     EMPTY_SCREEN_SHARE_CAPTURE_STATS,
   );
@@ -233,6 +237,7 @@ export default function Home() {
       setScreenShareState(nextState);
       setScreenShareError(nextError);
       setScreenShareSourceLabel("");
+      setScreenShareFrame(null);
       setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
     },
     [clearScreenShareSession],
@@ -251,6 +256,7 @@ export default function Home() {
       setScreenShareState("error");
       setScreenShareError("This browser does not support screen sharing.");
       setScreenShareSourceLabel("");
+      setScreenShareFrame(null);
       setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
       return;
     }
@@ -260,6 +266,7 @@ export default function Home() {
     setScreenShareState("starting");
     setScreenShareError("");
     setScreenShareSourceLabel("");
+    setScreenShareFrame(null);
     setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
 
     try {
@@ -283,6 +290,7 @@ export default function Home() {
         handleScreenShareTrackEnded();
       };
       const captureSession = await createScreenShareCaptureSession({
+        onFrame: setScreenShareFrame,
         onStatsChange: setScreenShareStats,
         stream,
       });
@@ -428,8 +436,8 @@ export default function Home() {
       CHAT_VRM_PARAMS_STORAGE_KEY,
       JSON.stringify({
         systemPrompt,
-        chatLog,
-        podcastLog,
+        chatLog: chatLog.map(stripTransientMessageImageData),
+        podcastLog: podcastLog.map(stripTransientMessageImageData),
         geminiModel,
         geminiVoiceName,
         interactionMode,
@@ -602,10 +610,15 @@ export default function Home() {
 
       const activeScreenShareSession =
         interactionMode === "chat" ? getActiveScreenShareSession() : null;
+      const currentScreenShareImage = toMessageInputImage(
+        activeScreenShareSession?.getLatestFrame(),
+        "Screen snapshot sent with this message",
+      );
 
       const preparedUserMessage = {
         ...nextUserMessage,
         content: trimmedContent,
+        inputImage: currentScreenShareImage ?? nextUserMessage.inputImage,
       };
 
       chatProcessingRef.current = true;
@@ -1001,6 +1014,10 @@ export default function Home() {
           const priorTurns = podcastTurnsRef.current;
           const priorMessages = podcastTurnsToGeminiMessages(priorTurns, speakerId);
           const latestPartnerTurn = priorTurns[priorTurns.length - 1];
+          const currentScreenShareImage = toMessageInputImage(
+            activeScreenShareSession?.getLatestFrame(),
+            `${speaker.displayName} turn input snapshot`,
+          );
           let preparedSessionForCurrentTurn =
             preparedSessionForNextTurn?.speakerId === speakerId
               ? preparedSessionForNextTurn
@@ -1271,6 +1288,7 @@ export default function Home() {
             transcript,
             audioMimeType: response.audioMimeType,
             audioBytes: response.audioBytes,
+            inputImage: currentScreenShareImage ?? undefined,
           };
 
           podcastTurnsRef.current = [...podcastTurnsRef.current, nextTurn];
@@ -2062,9 +2080,10 @@ export default function Home() {
           participants={[podcastParticipants.yukito, podcastParticipants.kiyoka]}
           activeSpeakerId={activePodcastSpeakerId}
           onViewersReady={handlePodcastViewersReady}
+          screenShareFrame={screenShareFrame}
         />
       ) : (
-        <VrmViewer />
+        <VrmViewer screenShareFrame={screenShareFrame} />
       )}
       <MessageInputContainer
         isChatProcessing={chatProcessing}
@@ -2552,4 +2571,37 @@ function stopMediaStream(stream: MediaStream | null): void {
       track.stop();
     }
   });
+}
+
+function toMessageInputImage(
+  frame: ScreenShareCaptureFrame | null | undefined,
+  label?: string,
+) {
+  if (!frame) {
+    return undefined;
+  }
+
+  return {
+    byteLength: frame.byteLength,
+    capturedAt: frame.capturedAt,
+    dataUrl: toScreenShareFrameDataUrl(frame) ?? undefined,
+    height: frame.height,
+    label,
+    mimeType: frame.mimeType,
+    width: frame.width,
+  };
+}
+
+function stripTransientMessageImageData(message: Message): Message {
+  if (!message.inputImage?.dataUrl) {
+    return message;
+  }
+
+  return {
+    ...message,
+    inputImage: {
+      ...message.inputImage,
+      dataUrl: undefined,
+    },
+  };
 }
