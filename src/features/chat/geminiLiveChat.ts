@@ -331,12 +331,8 @@ export async function startScreenShareRelay(
     sendScreenShareFrame(session, screenShareSession, latestFrame);
   }
 
-  const unsubscribe = screenShareSession.subscribe((frame) => {
-    sendScreenShareFrame(session, screenShareSession, frame);
-  });
-
   return async () => {
-    unsubscribe();
+    // Single-snapshot mode intentionally stops after the latest frame.
   };
 }
 
