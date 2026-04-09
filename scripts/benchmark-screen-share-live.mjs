@@ -2,7 +2,14 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { GoogleGenAI, MediaResolution, Modality } from "@google/genai";
+import {
+  GoogleGenAI,
+  MediaResolution,
+  Modality,
+  createPartFromBase64,
+  createPartFromText,
+  createUserContent,
+} from "@google/genai";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.resolve(SCRIPT_DIR, "..");
@@ -31,8 +38,8 @@ const strategies = [
     },
   },
   {
-    id: "single_snapshot",
-    label: "Single snapshot",
+    id: "realtime_snapshot",
+    label: "Realtime snapshot",
     async send({ imagePayload, markDone, session }) {
       session.sendRealtimeInput({
         video: imagePayload,
@@ -49,43 +56,22 @@ const strategies = [
     },
   },
   {
-    id: "streaming_frames",
-    label: "Snapshot + streaming frames",
+    id: "client_content_image_text",
+    label: "ClientContent image+text",
     async send({ imagePayload, markDone, session }) {
-      let framesSent = 1;
-      let stopped = false;
-
-      session.sendRealtimeInput({
-        video: imagePayload,
+      session.sendClientContent({
+        turns: [
+          createUserContent([
+            createPartFromBase64(imagePayload.data, imagePayload.mimeType),
+            createPartFromText(PROMPT),
+          ]),
+        ],
+        turnComplete: true,
       });
-      session.sendRealtimeInput({
-        text: PROMPT,
-      });
-
-      const loop = (async () => {
-        for (let index = 0; index < 2; index += 1) {
-          await sleep(1000);
-          if (stopped) {
-            return;
-          }
-
-          session.sendRealtimeInput({
-            video: imagePayload,
-          });
-          framesSent += 1;
-        }
-      })();
-
       return {
-        get framesSent() {
-          return framesSent;
-        },
+        framesSent: 1,
         stop: async () => {
-          stopped = true;
           markDone();
-          await loop.catch(() => {
-            // Ignore best-effort shutdown errors after the turn ended.
-          });
         },
       };
     },
@@ -138,13 +124,19 @@ console.log(`Image: ${path.relative(REPO_DIR, imagePath)} (${Math.round(imageByt
 console.log(`Model: ${env.NEXT_PUBLIC_GEMINI_LIVE_MODEL || DEFAULT_MODEL}`);
 console.log(`Rounds: ${rounds}`);
 console.log("");
-console.log("| Strategy | Avg first audio (ms) | Median first audio (ms) | Avg turn complete (ms) | Avg frames sent |");
-console.log("| --- | ---: | ---: | ---: | ---: |");
+console.log("| Strategy | Status | Avg first audio (ms) | Median first audio (ms) | Avg turn complete (ms) | Avg frames sent |");
+console.log("| --- | --- | ---: | ---: | ---: | ---: |");
 
 for (const strategy of strategies) {
   const strategyResults = results.filter((result) => result.strategyId === strategy.id);
+  const successResults = strategyResults.filter((result) => !result.error);
+  const status = successResults.length === strategyResults.length
+    ? "ok"
+    : successResults.length === 0
+      ? "failed"
+      : "partial";
   console.log(
-    `| ${strategy.label} | ${formatMetric(average(strategyResults.map((result) => result.firstAudioAtMs)))} | ${formatMetric(median(strategyResults.map((result) => result.firstAudioAtMs)))} | ${formatMetric(average(strategyResults.map((result) => result.turnCompleteAtMs)))} | ${formatMetric(average(strategyResults.map((result) => result.framesSent)))} |`,
+    `| ${strategy.label} | ${status} | ${formatMetric(average(successResults.map((result) => result.firstAudioAtMs)))} | ${formatMetric(median(successResults.map((result) => result.firstAudioAtMs)))} | ${formatMetric(average(successResults.map((result) => result.turnCompleteAtMs)))} | ${formatMetric(average(successResults.map((result) => result.framesSent)))} |`,
   );
 }
 
@@ -158,7 +150,9 @@ for (const strategy of strategies) {
     continue;
   }
 
-  console.log(`- ${strategy.label}: ${latestResult.transcript || "[empty]"}`);
+  console.log(
+    `- ${strategy.label}: ${latestResult.error ? `[error] ${latestResult.error}` : latestResult.transcript || "[empty]"}`,
+  );
 }
 
 async function runStrategyRound({
@@ -242,33 +236,51 @@ async function runStrategyRound({
     },
   });
 
-  const handle = await strategy.send({
-    imagePayload,
-    markDone() {
-      turnResolved = true;
-    },
-    session,
-  });
-
+  let handle;
   try {
+    handle = await strategy.send({
+      imagePayload,
+      markDone() {
+        turnResolved = true;
+      },
+      session,
+    });
+
     await turnFinished;
-  } finally {
+
     clearTimeout(timeoutId);
     framesSent =
       typeof handle.framesSent === "number" ? handle.framesSent : handle.framesSent;
-    await handle.stop();
+    return {
+      error: null,
+      firstAudioAtMs,
+      firstTranscriptAtMs,
+      framesSent,
+      round,
+      strategyId: strategy.id,
+      transcript: transcript.trim().replace(/\s+/g, " ").slice(0, 160),
+      turnCompleteAtMs,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    return {
+      error: error instanceof Error ? error.message : String(error),
+      firstAudioAtMs,
+      firstTranscriptAtMs,
+      framesSent,
+      round,
+      strategyId: strategy.id,
+      transcript: transcript.trim().replace(/\s+/g, " ").slice(0, 160),
+      turnCompleteAtMs,
+    };
+  } finally {
+    if (handle?.stop) {
+      await handle.stop().catch(() => {
+        // Ignore best-effort stop failures during benchmark cleanup.
+      });
+    }
     session.close();
   }
-
-  return {
-    firstAudioAtMs,
-    firstTranscriptAtMs,
-    framesSent,
-    round,
-    strategyId: strategy.id,
-    transcript: transcript.trim().replace(/\s+/g, " ").slice(0, 160),
-    turnCompleteAtMs,
-  };
 }
 
 function average(values) {
@@ -337,10 +349,4 @@ async function loadDotEnv(dotEnvPath) {
   } catch {
     return {};
   }
-}
-
-function sleep(delayMs) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, delayMs);
-  });
 }
