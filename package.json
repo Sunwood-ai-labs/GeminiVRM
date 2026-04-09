@@ -23,7 +23,7 @@
     "verify": "npm run lint && npm run build && npm run e2e:smoke"
   },
   "dependencies": {
-    "@google/genai": "^1.48.0",
+    "@google/genai": "^1.49.0",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@types/dom-speech-recognition": "^0.0.8",
     "eslint": "^9.39.4",
