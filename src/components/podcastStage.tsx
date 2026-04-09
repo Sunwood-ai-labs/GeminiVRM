@@ -87,7 +87,6 @@ export function PodcastStage({
       {screenShareFrame ? (
         <ScreenSharePreviewCard
           frame={screenShareFrame}
-          isCompact
           label="Screen sent to Gemini"
         />
       ) : null}
