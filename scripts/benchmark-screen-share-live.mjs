@@ -16,6 +16,7 @@ const REPO_DIR = path.resolve(SCRIPT_DIR, "..");
 const DEFAULT_IMAGE_PATH = path.join(REPO_DIR, "public", "ogp.jpg");
 const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
 const DEFAULT_ROUNDS = 3;
+const DEFAULT_MEDIA_RESOLUTION = MediaResolution.MEDIA_RESOLUTION_MEDIUM;
 const TURN_TIMEOUT_MS = 45000;
 const PROMPT = "What is visible here? Reply in one short sentence.";
 const SYSTEM_INSTRUCTION =
@@ -86,10 +87,12 @@ if (!apiKey) {
 
 const imagePathArg = process.argv[2];
 const roundsArg = process.argv[3];
+const resolutionArg = process.argv[4];
 const imagePath = imagePathArg
   ? path.resolve(REPO_DIR, imagePathArg)
   : DEFAULT_IMAGE_PATH;
 const rounds = Math.max(Number.parseInt(roundsArg || String(DEFAULT_ROUNDS), 10) || DEFAULT_ROUNDS, 1);
+const mediaResolution = parseMediaResolution(resolutionArg);
 const imageBytes = await readFile(imagePath);
 const imagePayload = {
   mimeType: guessMimeTypeFromPath(imagePath),
@@ -122,6 +125,7 @@ for (let round = 1; round <= rounds; round += 1) {
 console.log("");
 console.log(`Image: ${path.relative(REPO_DIR, imagePath)} (${Math.round(imageBytes.byteLength / 1024)} KB)`);
 console.log(`Model: ${env.NEXT_PUBLIC_GEMINI_LIVE_MODEL || DEFAULT_MODEL}`);
+console.log(`Media resolution: ${mediaResolution}`);
 console.log(`Rounds: ${rounds}`);
 console.log("");
 console.log("| Strategy | Status | Avg first audio (ms) | Median first audio (ms) | Avg turn complete (ms) | Avg frames sent |");
@@ -190,7 +194,7 @@ async function runStrategyRound({
     model,
     config: {
       responseModalities: [Modality.AUDIO],
-      mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+      mediaResolution,
       outputAudioTranscription: {},
       systemInstruction: SYSTEM_INSTRUCTION,
     },
@@ -348,5 +352,19 @@ async function loadDotEnv(dotEnvPath) {
     return Object.fromEntries(entries);
   } catch {
     return {};
+  }
+}
+
+function parseMediaResolution(value) {
+  const normalizedValue = (value || "").trim().toLowerCase();
+  switch (normalizedValue) {
+    case "low":
+    case "media_resolution_low":
+      return MediaResolution.MEDIA_RESOLUTION_LOW;
+    case "medium":
+    case "media_resolution_medium":
+      return MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+    default:
+      return DEFAULT_MEDIA_RESOLUTION;
   }
 }
