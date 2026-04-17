@@ -13,12 +13,13 @@ The current architecture optimizes for:
 
 ## Runtime Flow
 
-1. The user sends a prompt from the main page.
+1. The user sends a prompt from the main page, either as typed text or as a push-to-talk microphone turn.
 2. `src/pages/index.tsx` starts streaming playback mode on the active model.
-3. `src/features/chat/geminiLiveChat.ts` opens a Gemini Live session, sends the active turn through `sendRealtimeInput`, and forwards transcript updates plus audio chunks.
-4. `src/features/lipSync/lipSync.ts` validates PCM metadata, queues chunk playback, and keeps the analyser fed for mouth movement.
-5. `src/features/vrmViewer/model.ts` bridges the audio stream into the VRM runtime.
-6. `src/features/emoteController/*` updates expression, eye, blink, and lip sync state each frame.
+3. Text turns use `src/features/chat/geminiLiveChat.ts`, while microphone turns use `src/features/chat/geminiLiveMicChat.ts` plus `src/features/chat/microphoneCapture.ts`.
+4. The active Gemini Live session forwards transcript updates plus PCM audio chunks.
+5. `src/features/lipSync/lipSync.ts` validates PCM metadata, queues chunk playback, and keeps the analyser fed for mouth movement.
+6. `src/features/vrmViewer/model.ts` bridges the audio stream into the VRM runtime.
+7. `src/features/emoteController/*` updates expression, eye, blink, and lip sync state each frame.
 
 ## Optional YouTube Relay Flow
 
@@ -33,6 +34,10 @@ The current architecture optimizes for:
   - user input, streaming state, and chat flow
 - `src/features/chat/geminiLiveChat.ts`
   - Gemini Live connection lifecycle, realtime text input formatting for `gemini-3.1-flash-live-preview`, chunk forwarding, and transcript assembly
+- `src/features/chat/geminiLiveMicChat.ts`
+  - direct microphone-to-Gemini Live turn orchestration, history priming, input transcription, and streamed response audio
+- `src/features/chat/microphoneCapture.ts`
+  - browser microphone capture and PCM chunk extraction for live audio turns
 - `src/features/chat/geminiLiveConfig.ts`
   - default model and voice preset configuration
 - `src/features/lipSync/lipSync.ts`

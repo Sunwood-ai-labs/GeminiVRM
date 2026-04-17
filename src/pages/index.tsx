@@ -25,6 +25,14 @@ import {
 } from "@/features/chat/geminiLiveConfig";
 import { getGeminiLiveChatResponse } from "@/features/chat/geminiLiveChat";
 import {
+  createGeminiLiveMicChatSession,
+  type GeminiLiveMicChatSession,
+} from "@/features/chat/geminiLiveMicChat";
+import {
+  createMicrophoneCaptureSession,
+  type MicrophoneCaptureSession,
+} from "@/features/chat/microphoneCapture";
+import {
   createScreenShareCaptureSession,
   EMPTY_SCREEN_SHARE_CAPTURE_STATS,
   toScreenShareFrameDataUrl,
@@ -85,6 +93,7 @@ import {
   DEFAULT_BUILT_IN_MOTION_ID,
   isBuiltInMotionId,
 } from "@/features/vrmViewer/builtInMotions";
+import type { Model } from "@/features/vrmViewer/model";
 import { wait } from "@/utils/wait";
 
 const MAX_YOUTUBE_PREVIEW_COMMENTS = 12;
@@ -102,6 +111,14 @@ const YOUTUBE_AUTH_SESSION_STORAGE_KEY = "youtubeAuthSessionV1";
 const YOUTUBE_AUTH_SESSION_LEEWAY_MS = 30000;
 
 type ScreenShareState = "idle" | "starting" | "active" | "error";
+
+type ActiveMicrophoneTurn = {
+  captureSession: MicrophoneCaptureSession;
+  historyMessages: Message[];
+  inputImage?: Message["inputImage"];
+  liveSession: GeminiLiveMicChatSession;
+  model: Model | undefined;
+};
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
@@ -129,6 +146,7 @@ export default function Home() {
     DEFAULT_BUILT_IN_MOTION_ID,
   );
   const [chatProcessing, setChatProcessing] = useState(false);
+  const [isMicRecording, setIsMicRecording] = useState(false);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [podcastLog, setPodcastLog] = useState<Message[]>([]);
   const [assistantMessage, setAssistantMessage] = useState("");
@@ -195,6 +213,7 @@ export default function Home() {
   const isYoutubeAutoReplyEnabledRef = useRef(isYoutubeAutoReplyEnabled);
   const restoredYoutubeAccessTokenRef = useRef<string | null>(null);
   const screenShareSessionRef = useRef<ScreenShareCaptureSession | null>(null);
+  const activeMicrophoneTurnRef = useRef<ActiveMicrophoneTurn | null>(null);
 
   interactionModeRef.current = interactionMode;
   podcastTurnCountRef.current = podcastTurnCount;
@@ -594,6 +613,209 @@ export default function Home() {
     },
     [selectedMotionId],
   );
+
+  const abortActiveMicrophoneTurn = useCallback(async (reason?: unknown) => {
+    const activeTurn = activeMicrophoneTurnRef.current;
+    activeMicrophoneTurnRef.current = null;
+    chatProcessingRef.current = false;
+    setChatProcessing(false);
+    setIsMicRecording(false);
+
+    if (!activeTurn) {
+      return;
+    }
+
+    await activeTurn.captureSession.stop().catch(() => {});
+    activeTurn.liveSession.close(reason);
+    activeTurn.model?.stopSpeaking();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      void abortActiveMicrophoneTurn("Page unload stopped microphone chat.");
+    };
+  }, [abortActiveMicrophoneTurn]);
+
+  const startMicrophoneChatTurn = useCallback(async () => {
+    if (interactionMode !== "chat") {
+      setAssistantSpeakerName("");
+      setAssistantStatus("Microphone input is available only in Character chat.");
+      setAssistantMessage("");
+      return false;
+    }
+
+    if (!geminiApiKey) {
+      setAssistantSpeakerName("");
+      setAssistantMessage("Enter your Gemini API key first.");
+      return false;
+    }
+
+    if (chatProcessingRef.current) {
+      return false;
+    }
+
+    const activeScreenShareSession = getActiveScreenShareSession();
+    const currentScreenShareImage = toMessageInputImage(
+      activeScreenShareSession?.getLatestFrame(),
+      "Screen snapshot sent with this voice message",
+    );
+    const historyMessages = [...chatLogRef.current];
+    const screenplay = createNeutralScreenplay("");
+    const activeModel = viewer.model;
+    let hasStartedAudio = false;
+    let captureSession: MicrophoneCaptureSession | undefined;
+    let liveSession: GeminiLiveMicChatSession | undefined;
+
+    chatProcessingRef.current = true;
+    setChatProcessing(true);
+    setAssistantSpeakerName("YOU");
+    setAssistantMessage("");
+    setAssistantStatus(
+      activeScreenShareSession
+        ? "Opening microphone and Gemini Live with screen share..."
+        : "Opening microphone and Gemini Live...",
+    );
+
+    try {
+      await activeModel?.beginStreamingSpeak(screenplay);
+
+      liveSession = await createGeminiLiveMicChatSession({
+        apiKey: geminiApiKey,
+        historyMessages,
+        systemPrompt,
+        model: geminiModel,
+        voiceName: geminiVoiceName,
+        screenShareSession: activeScreenShareSession,
+        onInputTranscript: (partialTranscript) => {
+          if (hasStartedAudio) {
+            return;
+          }
+
+          setAssistantSpeakerName("YOU");
+          setAssistantStatus("Listening to microphone...");
+          setAssistantMessage(partialTranscript);
+        },
+        onOutputTranscript: (partialTranscript) => {
+          setAssistantSpeakerName("CHARACTER");
+          if (!hasStartedAudio) {
+            setAssistantStatus("Receiving response...");
+          }
+          setAssistantMessage(partialTranscript);
+        },
+        onAudioChunk: (chunk) => {
+          if (!hasStartedAudio) {
+            hasStartedAudio = true;
+            setAssistantSpeakerName("CHARACTER");
+            setAssistantStatus("Playing audio...");
+          }
+
+          activeModel?.appendPCMChunk(chunk.data, chunk.mimeType);
+        },
+      });
+
+      captureSession = await createMicrophoneCaptureSession({
+        onAudioChunk: (chunk, mimeType) => {
+          liveSession?.sendUserAudioChunk(chunk, mimeType);
+        },
+      });
+
+      activeMicrophoneTurnRef.current = {
+        captureSession,
+        historyMessages,
+        inputImage: currentScreenShareImage,
+        liveSession,
+        model: activeModel,
+      };
+
+      setIsMicRecording(true);
+      setAssistantSpeakerName("YOU");
+      setAssistantStatus("Listening to microphone...");
+      setAssistantMessage("");
+      return true;
+    } catch (error) {
+      await captureSession?.stop().catch(() => {});
+      liveSession?.close(error);
+      activeModel?.stopSpeaking();
+      console.error(error);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error ? error.message : "Microphone chat failed.",
+      );
+      chatProcessingRef.current = false;
+      setChatProcessing(false);
+      setIsMicRecording(false);
+      return false;
+    }
+  }, [
+    geminiApiKey,
+    geminiModel,
+    geminiVoiceName,
+    getActiveScreenShareSession,
+    interactionMode,
+    systemPrompt,
+    viewer.model,
+  ]);
+
+  const stopMicrophoneChatTurn = useCallback(async () => {
+    const activeTurn = activeMicrophoneTurnRef.current;
+    if (!activeTurn) {
+      return false;
+    }
+
+    activeMicrophoneTurnRef.current = null;
+    setIsMicRecording(false);
+    setAssistantSpeakerName("YOU");
+    setAssistantStatus("Finishing microphone input...");
+
+    try {
+      await activeTurn.captureSession.stop();
+
+      const response = await activeTurn.liveSession.finishUserAudio();
+      const userTranscript =
+        response.inputTranscript.trim() || "[Voice input transcript unavailable]";
+      const assistantTranscript =
+        response.transcript.trim() || "Audio response received.";
+      const updatedChatLog = [
+        ...activeTurn.historyMessages,
+        {
+          role: "user" as const,
+          content: userTranscript,
+          displayContent: userTranscript,
+          inputImage: activeTurn.inputImage,
+          source: "manual" as const,
+          name: "YOU",
+        },
+        {
+          role: "assistant" as const,
+          content: assistantTranscript,
+          source: "assistant" as const,
+          name: "CHARACTER",
+        },
+      ];
+
+      chatLogRef.current = updatedChatLog;
+      setChatLog(updatedChatLog);
+      setAssistantSpeakerName("CHARACTER");
+      setAssistantMessage(assistantTranscript);
+
+      await activeTurn.model?.finishStreamingSpeak();
+      setAssistantStatus("");
+      return true;
+    } catch (error) {
+      activeTurn.liveSession.close(error);
+      activeTurn.model?.stopSpeaking();
+      console.error(error);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error ? error.message : "Microphone chat failed.",
+      );
+      return false;
+    } finally {
+      chatProcessingRef.current = false;
+      setChatProcessing(false);
+      setIsMicRecording(false);
+    }
+  }, []);
 
   const startChatTurn = useCallback(
     async (nextUserMessage: Message) => {
@@ -1423,6 +1645,15 @@ export default function Home() {
     [interactionMode, startChatTurn, startPodcastConversation],
   );
 
+  const handleToggleMicRecording = useCallback(async () => {
+    if (isMicRecording) {
+      await stopMicrophoneChatTurn();
+      return;
+    }
+
+    await startMicrophoneChatTurn();
+  }, [isMicRecording, startMicrophoneChatTurn, stopMicrophoneChatTurn]);
+
   const dispatchExternalControlCommand = useCallback(
     async (
       command: GeminiVrmExternalControlCommand,
@@ -2087,8 +2318,11 @@ export default function Home() {
       )}
       <MessageInputContainer
         isChatProcessing={chatProcessing}
+        isMicRecording={isMicRecording}
+        isMicAvailable={interactionMode === "chat"}
         placeholder={inputPlaceholder}
         onChatProcessStart={handleSendChat}
+        onToggleMicRecording={handleToggleMicRecording}
       />
       <Menu
         geminiApiKey={geminiApiKey}

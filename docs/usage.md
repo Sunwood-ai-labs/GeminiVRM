@@ -8,7 +8,7 @@ title: Usage Guide
 
 1. Start the app and provide a Gemini API key.
 2. Keep the bundled `Kiyoka.vrm` avatar or load your own `.vrm` file.
-3. Send a text prompt or use the microphone input.
+3. Send a text prompt or click the microphone button to stream a push-to-talk voice turn directly into Gemini Live.
 4. Read the partial transcript while audio streams in.
 5. Let the viewer finish playback before sending the next prompt if you want the cleanest lip sync.
 
@@ -29,6 +29,12 @@ Important notes:
 - if a prepared relay path fails, GeminiVRM now stops on the exact Gemini Live
   error instead of silently switching to transcript-driven continuation or an
   older model
+
+## Direct Microphone Chat
+
+- the main `Character chat` microphone button opens a direct Gemini Live audio turn instead of browser speech recognition
+- click once to start sending microphone audio to Gemini Live, then click again to end the turn and let the assistant answer
+- the partial input transcript shown while recording comes from Gemini Live input transcription, not local browser speech recognition
 
 ## Settings You Can Tune
 

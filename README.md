@@ -30,6 +30,7 @@ The current build focuses on:
 ## Features
 
 - Stream Gemini Live transcript and audio in the browser for character chat
+- Send microphone audio directly into Gemini Live for character chat push-to-talk turns
 - Switch between `Character chat` and `Podcast mode` from `Settings`
 - Start with bundled `Kiyoka.vrm` and `Yukito.vrm`, or load your own local `.vrm`
 - Tune the live model, single-chat voice, system prompt, podcast turn cap, and per-host podcast voices from the UI
@@ -88,7 +89,7 @@ back to older Gemini Live preview models.
 
 1. Launch the app and enter a Gemini API key.
 2. Open `Settings` and choose `Character chat` or `Podcast mode`.
-3. In character chat, keep the default `Kiyoka.vrm` avatar or load another VRM, then send a text prompt or use the microphone button.
+3. In character chat, keep the default `Kiyoka.vrm` avatar or load another VRM, then send a text prompt or click the microphone button to stream your voice directly into Gemini Live.
 4. In podcast mode, enter one topic and let Yukito and Kiyoka alternate short audio turns until the configured turn cap is reached.
 5. Open `Settings` -> `Podcast settings` if you want to change the max loop count or podcast-only voice routing.
 6. Use `Settings` to tune the live model, single-chat voice, system prompt, idle motion, and other core runtime settings.
