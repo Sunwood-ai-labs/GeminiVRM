@@ -921,6 +921,26 @@ export default function Home() {
     let liveSession: GeminiLiveHandsFreeSession | undefined;
     let captureSession: MicrophoneCaptureSession | undefined;
     let hasStartedAudio = false;
+    let playbackGeneration = 0;
+
+    const handleHandsFreePlaybackError = (error: unknown) => {
+      hasStartedAudio = false;
+      activeHandsFreeTurnRef.current = null;
+      activeModel?.stopSpeaking();
+      setIsMicRecording(false);
+      chatProcessingRef.current = false;
+      setChatProcessing(false);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error ? error.message : "Hands-free chat failed.",
+      );
+    };
+
+    const armHandsFreePlayback = async () => {
+      playbackGeneration += 1;
+      await activeModel?.beginStreamingSpeak(createNeutralScreenplay(""));
+      return playbackGeneration;
+    };
 
     chatProcessingRef.current = true;
     setChatProcessing(true);
@@ -934,7 +954,7 @@ export default function Home() {
     );
 
     try {
-      await activeModel?.beginStreamingSpeak(createNeutralScreenplay(""));
+      await armHandsFreePlayback();
 
       liveSession = await createGeminiLiveHandsFreeSession({
         apiKey: geminiApiKey,
@@ -969,7 +989,7 @@ export default function Home() {
           activeModel?.appendPCMChunk(chunk.data, chunk.mimeType);
         },
         onTurnComplete: (turn) => {
-          hasStartedAudio = false;
+          const completedPlaybackGeneration = playbackGeneration;
           appendCompletedChatTurn(
             turn.inputTranscript
               ? {
@@ -990,25 +1010,41 @@ export default function Home() {
               : null,
             turn.transcript || undefined,
           );
-          setAssistantStatus("Hands-free mode is listening...");
+
+          if (!hasStartedAudio) {
+            setAssistantSpeakerName("YOU");
+            setAssistantStatus("Hands-free mode is listening...");
+            return;
+          }
+
+          void (async () => {
+            try {
+              await activeModel?.finishStreamingSpeak();
+              if (
+                activeHandsFreeTurnRef.current?.model !== activeModel ||
+                playbackGeneration !== completedPlaybackGeneration
+              ) {
+                return;
+              }
+
+              hasStartedAudio = false;
+              await armHandsFreePlayback();
+              setAssistantSpeakerName("YOU");
+              setAssistantStatus("Hands-free mode is listening...");
+            } catch (error) {
+              handleHandsFreePlaybackError(error);
+            }
+          })();
         },
         onInterrupted: () => {
+          playbackGeneration += 1;
           hasStartedAudio = false;
           activeModel?.stopSpeaking();
-          void activeModel?.beginStreamingSpeak(createNeutralScreenplay(""));
+          void armHandsFreePlayback().catch(handleHandsFreePlaybackError);
           setAssistantSpeakerName("YOU");
           setAssistantStatus("Hands-free mode is listening...");
         },
-        onError: (error) => {
-          hasStartedAudio = false;
-          activeHandsFreeTurnRef.current = null;
-          activeModel?.stopSpeaking();
-          setIsMicRecording(false);
-          chatProcessingRef.current = false;
-          setChatProcessing(false);
-          setAssistantStatus("Error");
-          setAssistantMessage(error.message);
-        },
+        onError: handleHandsFreePlaybackError,
       });
 
       captureSession = await createMicrophoneCaptureSession({
