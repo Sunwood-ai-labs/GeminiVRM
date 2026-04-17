@@ -25,6 +25,14 @@ import {
 } from "@/features/chat/geminiLiveConfig";
 import { getGeminiLiveChatResponse } from "@/features/chat/geminiLiveChat";
 import {
+  createScreenShareCaptureSession,
+  EMPTY_SCREEN_SHARE_CAPTURE_STATS,
+  toScreenShareFrameDataUrl,
+  type ScreenShareCaptureFrame,
+  type ScreenShareCaptureSession,
+  type ScreenShareCaptureStats,
+} from "@/features/chat/screenShareCapture";
+import {
   createGeminiLiveAudioRelaySession,
   getGeminiLiveAudioRelayResponse,
   type GeminiLiveAudioRelayResponse,
@@ -93,6 +101,8 @@ const CHAT_VRM_PARAMS_STORAGE_KEY = "chatVRMParams";
 const YOUTUBE_AUTH_SESSION_STORAGE_KEY = "youtubeAuthSessionV1";
 const YOUTUBE_AUTH_SESSION_LEEWAY_MS = 30000;
 
+type ScreenShareState = "idle" | "starting" | "active" | "error";
+
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
@@ -126,6 +136,15 @@ export default function Home() {
   const [assistantSpeakerName, setAssistantSpeakerName] = useState("");
   const [activePodcastSpeakerId, setActivePodcastSpeakerId] =
     useState<PodcastSpeakerId | null>(null);
+  const [screenShareState, setScreenShareState] =
+    useState<ScreenShareState>("idle");
+  const [screenShareError, setScreenShareError] = useState("");
+  const [screenShareSourceLabel, setScreenShareSourceLabel] = useState("");
+  const [screenShareFrame, setScreenShareFrame] =
+    useState<ScreenShareCaptureFrame | null>(null);
+  const [screenShareStats, setScreenShareStats] = useState<ScreenShareCaptureStats>(
+    EMPTY_SCREEN_SHARE_CAPTURE_STATS,
+  );
 
   const [youtubeClientId, setYoutubeClientId] = useState(
     process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
@@ -175,6 +194,7 @@ export default function Home() {
   const youtubeAutoReplyInFlightRef = useRef(false);
   const isYoutubeAutoReplyEnabledRef = useRef(isYoutubeAutoReplyEnabled);
   const restoredYoutubeAccessTokenRef = useRef<string | null>(null);
+  const screenShareSessionRef = useRef<ScreenShareCaptureSession | null>(null);
 
   interactionModeRef.current = interactionMode;
   podcastTurnCountRef.current = podcastTurnCount;
@@ -189,6 +209,119 @@ export default function Home() {
   useEffect(() => {
     isYoutubeAutoReplyEnabledRef.current = isYoutubeAutoReplyEnabled;
   }, [isYoutubeAutoReplyEnabled]);
+
+  const clearScreenShareSession = useCallback(() => {
+    const captureSession = screenShareSessionRef.current;
+    screenShareSessionRef.current = null;
+    captureSession?.stop();
+    stopMediaStream(captureSession?.stream ?? null);
+  }, []);
+
+  const getActiveScreenShareSession = useCallback(() => {
+    const captureSession = screenShareSessionRef.current;
+    if (
+      !captureSession ||
+      !captureSession.stream
+        .getVideoTracks()
+        .some((track) => track.readyState === "live")
+    ) {
+      return null;
+    }
+
+    return captureSession;
+  }, []);
+
+  const resetScreenShare = useCallback(
+    (nextState: ScreenShareState, nextError = "") => {
+      clearScreenShareSession();
+      setScreenShareState(nextState);
+      setScreenShareError(nextError);
+      setScreenShareSourceLabel("");
+      setScreenShareFrame(null);
+      setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
+    },
+    [clearScreenShareSession],
+  );
+
+  const stopScreenShare = useCallback(() => {
+    resetScreenShare("idle");
+  }, [resetScreenShare]);
+
+  const handleScreenShareTrackEnded = useCallback(() => {
+    resetScreenShare("idle");
+  }, [resetScreenShare]);
+
+  const startScreenShare = useCallback(async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setScreenShareState("error");
+      setScreenShareError("This browser does not support screen sharing.");
+      setScreenShareSourceLabel("");
+      setScreenShareFrame(null);
+      setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
+      return;
+    }
+
+    clearScreenShareSession();
+
+    setScreenShareState("starting");
+    setScreenShareError("");
+    setScreenShareSourceLabel("");
+    setScreenShareFrame(null);
+    setScreenShareStats(EMPTY_SCREEN_SHARE_CAPTURE_STATS);
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: {
+            ideal: 1,
+            max: 1,
+          },
+        },
+        audio: false,
+      });
+      const videoTrack = stream.getVideoTracks()[0];
+
+      if (!videoTrack) {
+        stopMediaStream(stream);
+        throw new Error("The selected screen share source has no video track.");
+      }
+
+      videoTrack.onended = () => {
+        handleScreenShareTrackEnded();
+      };
+      const captureSession = await createScreenShareCaptureSession({
+        onFrame: setScreenShareFrame,
+        onStatsChange: setScreenShareStats,
+        stream,
+      });
+      screenShareSessionRef.current = captureSession;
+      setScreenShareState("active");
+      setScreenShareError("");
+      setScreenShareSourceLabel(videoTrack.label || "Shared screen");
+      setScreenShareStats(captureSession.getStats());
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        (error.name === "NotAllowedError" || error.name === "AbortError")
+      ) {
+        resetScreenShare("idle");
+        return;
+      }
+
+      resetScreenShare(
+        "error",
+        error instanceof Error
+          ? error.message
+          : "Failed to start screen sharing.",
+      );
+    }
+  }, [clearScreenShareSession, handleScreenShareTrackEnded, resetScreenShare]);
+
+  useEffect(() => {
+    return () => {
+      clearScreenShareSession();
+    };
+  }, [clearScreenShareSession]);
 
   useEffect(() => {
     const rawChatParams = window.localStorage.getItem(
@@ -303,8 +436,8 @@ export default function Home() {
       CHAT_VRM_PARAMS_STORAGE_KEY,
       JSON.stringify({
         systemPrompt,
-        chatLog,
-        podcastLog,
+        chatLog: chatLog.map(stripTransientMessageImageData),
+        podcastLog: podcastLog.map(stripTransientMessageImageData),
         geminiModel,
         geminiVoiceName,
         interactionMode,
@@ -475,16 +608,28 @@ export default function Home() {
         return false;
       }
 
+      const activeScreenShareSession =
+        interactionMode === "chat" ? getActiveScreenShareSession() : null;
+      const currentScreenShareImage = toMessageInputImage(
+        activeScreenShareSession?.getLatestFrame(),
+        "Screen snapshot sent with this message",
+      );
+
       const preparedUserMessage = {
         ...nextUserMessage,
         content: trimmedContent,
+        inputImage: currentScreenShareImage ?? nextUserMessage.inputImage,
       };
 
       chatProcessingRef.current = true;
       setChatProcessing(true);
       setAssistantSpeakerName("CHARACTER");
       setAssistantMessage("");
-      setAssistantStatus("Connecting to Gemini Live...");
+      setAssistantStatus(
+        activeScreenShareSession
+          ? "Connecting to Gemini Live with screen share..."
+          : "Connecting to Gemini Live...",
+      );
 
       const messageLog: Message[] = [
         ...chatLogRef.current,
@@ -505,6 +650,7 @@ export default function Home() {
           systemPrompt,
           model: geminiModel,
           voiceName: geminiVoiceName,
+          screenShareSession: activeScreenShareSession,
           onAudioChunk: (chunk) => {
             if (!hasStartedAudio) {
               hasStartedAudio = true;
@@ -554,7 +700,15 @@ export default function Home() {
         setChatProcessing(false);
       }
     },
-    [geminiApiKey, geminiModel, geminiVoiceName, systemPrompt, viewer.model],
+    [
+      geminiApiKey,
+      geminiModel,
+      geminiVoiceName,
+      getActiveScreenShareSession,
+      interactionMode,
+      systemPrompt,
+      viewer.model,
+    ],
   );
 
   const startPodcastConversation = useCallback(
@@ -585,6 +739,9 @@ export default function Home() {
       }
 
       const relayMode = resolvePodcastRelayMode();
+      const activeScreenShareSession = getActiveScreenShareSession();
+      const usePreparedRelay =
+        relayMode === "streaming" && activeScreenShareSession == null;
       clearPodcastDebugEvents();
       const runToken = ++podcastRunTokenRef.current;
       podcastTurnsRef.current = [];
@@ -857,6 +1014,10 @@ export default function Home() {
           const priorTurns = podcastTurnsRef.current;
           const priorMessages = podcastTurnsToGeminiMessages(priorTurns, speakerId);
           const latestPartnerTurn = priorTurns[priorTurns.length - 1];
+          const currentScreenShareImage = toMessageInputImage(
+            activeScreenShareSession?.getLatestFrame(),
+            `${speaker.displayName} turn input snapshot`,
+          );
           let preparedSessionForCurrentTurn =
             preparedSessionForNextTurn?.speakerId === speakerId
               ? preparedSessionForNextTurn
@@ -871,7 +1032,7 @@ export default function Home() {
           let responsePath: "opening" | "prepared" | "batch" =
             latestPartnerTurn == null
               ? "opening"
-              : preparedSessionForCurrentTurn
+              : preparedSessionForCurrentTurn && usePreparedRelay
                 ? "prepared"
                 : "batch";
 
@@ -909,7 +1070,7 @@ export default function Home() {
 
           const nextSpeaker =
             podcastParticipants[nextSpeakerId];
-          if (relayMode === "streaming" && turnIndex < podcastTurnCount - 1) {
+          if (usePreparedRelay && turnIndex < podcastTurnCount - 1) {
             preparedSessionForFollowingTurn = createPreparedRelaySession(
               nextSpeaker,
               speaker,
@@ -993,6 +1154,7 @@ export default function Home() {
               relayAudioMimeType: latestPartnerTurn.audioMimeType,
               model: geminiModel,
               voiceName: speaker.voiceName,
+              screenShareSession: activeScreenShareSession,
               onAudioChunk: (chunk) => {
                 if (!hasStartedAudio) {
                   hasStartedAudio = true;
@@ -1071,6 +1233,7 @@ export default function Home() {
                   systemPrompt: speaker.systemPrompt,
                   model: geminiModel,
                   voiceName: speaker.voiceName,
+                  screenShareSession: activeScreenShareSession,
                   onAudioChunk: (chunk) => {
                     if (!hasStartedAudio) {
                       hasStartedAudio = true;
@@ -1125,6 +1288,7 @@ export default function Home() {
             transcript,
             audioMimeType: response.audioMimeType,
             audioBytes: response.audioBytes,
+            inputImage: currentScreenShareImage ?? undefined,
           };
 
           podcastTurnsRef.current = [...podcastTurnsRef.current, nextTurn];
@@ -1232,6 +1396,7 @@ export default function Home() {
     [
       geminiApiKey,
       geminiModel,
+      getActiveScreenShareSession,
       podcastParticipants,
       podcastTurnCount,
     ],
@@ -1880,8 +2045,9 @@ export default function Home() {
   return (
     <div className="relative min-h-[100svh] font-M_PLUS_2">
       <Meta />
-      {isYoutubeRelayMode ? (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex justify-center px-16">
+      {isYoutubeRelayMode || screenShareState === "active" ? (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex flex-col items-center gap-8 px-16">
+          {isYoutubeRelayMode ? (
           <div
             className={`rounded-full border border-white/60 px-16 py-8 text-xs font-bold uppercase tracking-[0.24em] shadow-lg backdrop-blur ${
               youtubeReceiveState === "listening"
@@ -1897,6 +2063,12 @@ export default function Home() {
               ? `YouTube Relay - ${selectedYoutubeBroadcast.title}`
               : "YouTube Relay - Waiting for broadcast"}
           </div>
+          ) : null}
+          {screenShareState === "active" ? (
+            <div className="rounded-full border border-white/60 bg-sky-500/90 px-16 py-8 text-xs font-bold uppercase tracking-[0.24em] text-white shadow-lg backdrop-blur">
+              {`Screen Share To Gemini - C${screenShareStats.capturedFrameCount} / S${screenShareStats.streamedFrameCount}`}
+            </div>
+          ) : null}
         </div>
       ) : null}
       <Introduction
@@ -1908,9 +2080,10 @@ export default function Home() {
           participants={[podcastParticipants.yukito, podcastParticipants.kiyoka]}
           activeSpeakerId={activePodcastSpeakerId}
           onViewersReady={handlePodcastViewersReady}
+          screenShareFrame={screenShareFrame}
         />
       ) : (
-        <VrmViewer />
+        <VrmViewer screenShareFrame={screenShareFrame} />
       )}
       <MessageInputContainer
         isChatProcessing={chatProcessing}
@@ -1922,6 +2095,10 @@ export default function Home() {
         geminiModel={geminiModel}
         geminiVoiceName={geminiVoiceName}
         interactionMode={interactionMode}
+        screenShareState={screenShareState}
+        screenShareError={screenShareError}
+        screenShareSourceLabel={screenShareSourceLabel}
+        screenShareStats={screenShareStats}
         podcastTurnCount={podcastTurnCount}
         podcastYukitoVoiceName={podcastYukitoVoiceName}
         podcastKiyokaVoiceName={podcastKiyokaVoiceName}
@@ -1935,6 +2112,8 @@ export default function Home() {
         onChangeGeminiModel={setGeminiModel}
         onChangeGeminiVoiceName={setGeminiVoiceName}
         onChangeInteractionMode={setInteractionMode}
+        onStartScreenShare={startScreenShare}
+        onStopScreenShare={stopScreenShare}
         onChangePodcastTurnCount={(nextTurnCount) =>
           setPodcastTurnCount(clampPodcastTurnCount(nextTurnCount))
         }
@@ -2382,5 +2561,47 @@ function updateEditableMessage(message: Message, nextText: string): Message {
     ...message,
     content: nextText,
     displayContent: undefined,
+  };
+}
+
+function stopMediaStream(stream: MediaStream | null): void {
+  stream?.getTracks().forEach((track) => {
+    track.onended = null;
+    if (track.readyState === "live") {
+      track.stop();
+    }
+  });
+}
+
+function toMessageInputImage(
+  frame: ScreenShareCaptureFrame | null | undefined,
+  label?: string,
+) {
+  if (!frame) {
+    return undefined;
+  }
+
+  return {
+    byteLength: frame.byteLength,
+    capturedAt: frame.capturedAt,
+    dataUrl: toScreenShareFrameDataUrl(frame) ?? undefined,
+    height: frame.height,
+    label,
+    mimeType: frame.mimeType,
+    width: frame.width,
+  };
+}
+
+function stripTransientMessageImageData(message: Message): Message {
+  if (!message.inputImage?.dataUrl) {
+    return message;
+  }
+
+  return {
+    ...message,
+    inputImage: {
+      ...message.inputImage,
+      dataUrl: undefined,
+    },
   };
 }

@@ -15,12 +15,17 @@ import {
   BuiltInMotionId,
 } from "@/features/vrmViewer/builtInMotions";
 import { InteractionMode } from "@/features/podcast/podcastConfig";
+import type { ScreenShareCaptureStats } from "@/features/chat/screenShareCapture";
 
 type Props = {
   geminiApiKey: string;
   geminiModel: string;
   geminiVoiceName: string;
   interactionMode: InteractionMode;
+  screenShareState: "idle" | "starting" | "active" | "error";
+  screenShareError: string;
+  screenShareSourceLabel: string;
+  screenShareStats: ScreenShareCaptureStats;
   podcastTurnCount: number;
   podcastYukitoVoiceName: string;
   podcastKiyokaVoiceName: string;
@@ -32,6 +37,8 @@ type Props = {
   onChangeGeminiModel: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onChangeGeminiVoiceName: (voiceName: string) => void;
   onChangeInteractionMode: (mode: InteractionMode) => void;
+  onStartScreenShare: () => void;
+  onStopScreenShare: () => void;
   onChangePodcastTurnCount: (turnCount: number) => void;
   onChangePodcastYukitoVoiceName: (voiceName: string) => void;
   onChangePodcastKiyokaVoiceName: (voiceName: string) => void;
@@ -49,6 +56,10 @@ export const Settings = ({
   geminiModel,
   geminiVoiceName,
   interactionMode,
+  screenShareState,
+  screenShareError,
+  screenShareSourceLabel,
+  screenShareStats,
   podcastTurnCount,
   podcastYukitoVoiceName,
   podcastKiyokaVoiceName,
@@ -60,6 +71,8 @@ export const Settings = ({
   onChangeGeminiModel,
   onChangeGeminiVoiceName,
   onChangeInteractionMode,
+  onStartScreenShare,
+  onStopScreenShare,
   onChangePodcastTurnCount,
   onChangePodcastYukitoVoiceName,
   onChangePodcastKiyokaVoiceName,
@@ -497,6 +510,108 @@ export const Settings = ({
               ) : null}
 
               <div className="my-40">
+                <div className="my-16 typography-20 font-bold">
+                  Screen sharing
+                </div>
+                <div className="rounded-16 border border-black/10 bg-white/70 px-16 py-16">
+                  <div className="flex items-start justify-between gap-12">
+                    <div>
+                      <div className="typography-20 font-bold">
+                        Realtime screen context
+                      </div>
+                      <div className="mt-6 text-sm leading-relaxed text-text2">
+                        Share a window, tab, or full display and Gemini will
+                        receive one JPEG frame per second. The latest live
+                        frame is shown on stage, attached to the log, and sent
+                        into each Gemini turn before streaming resumes.
+                      </div>
+                    </div>
+                    <div
+                      className={`rounded-full px-10 py-4 text-xs font-bold ${
+                        screenShareState === "active"
+                          ? "bg-emerald-500/10 text-emerald-700"
+                          : screenShareState === "starting"
+                            ? "bg-amber-500/10 text-amber-700"
+                            : screenShareState === "error"
+                              ? "bg-rose-500/10 text-rose-700"
+                              : "bg-black/5 text-text2"
+                      }`}
+                    >
+                      {screenShareState === "active"
+                        ? "Active"
+                        : screenShareState === "starting"
+                          ? "Starting"
+                          : screenShareState === "error"
+                            ? "Needs attention"
+                            : "Off"}
+                    </div>
+                  </div>
+                  <div className="mt-10 text-sm text-text2">
+                    {screenShareState === "active"
+                      ? `Source: ${screenShareSourceLabel || "Shared screen"}`
+                      : "Gemini Live caps audio+video sessions to about 2 minutes, and Live video input is limited to 1 frame per second."}
+                  </div>
+                  <div className="mt-8 grid gap-8 text-sm text-text2 md:grid-cols-2">
+                    <div>
+                      Captured frames: <strong>{screenShareStats.capturedFrameCount}</strong>
+                      {" / Live frame ready: "}
+                      <strong>{screenShareStats.bufferedFrameCount > 0 ? "Yes" : "No"}</strong>
+                    </div>
+                    <div>
+                      Sent to Gemini: <strong>{screenShareStats.streamedFrameCount}</strong>
+                    </div>
+                    <div>
+                      Last capture:{" "}
+                      <strong>{formatScreenShareTimestamp(screenShareStats.lastCapturedAt)}</strong>
+                    </div>
+                    <div>
+                      Last send:{" "}
+                      <strong>{formatScreenShareTimestamp(screenShareStats.lastStreamedAt)}</strong>
+                    </div>
+                    <div>
+                      Last frame:{" "}
+                      <strong>
+                        {formatScreenShareFrameStats(
+                          screenShareStats.lastFrameWidth,
+                          screenShareStats.lastFrameHeight,
+                          screenShareStats.lastFrameByteLength,
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+                  {interactionMode === "podcast" ? (
+                    <div className="mt-8 text-sm text-text2">
+                      Podcast mode now forwards the shared screen into each
+                      Gemini turn. While screen sharing is active, the podcast
+                      relay uses the safer per-turn path instead of relay
+                      prewarming.
+                    </div>
+                  ) : null}
+                  {screenShareError ? (
+                    <div className="mt-8 text-sm text-rose-700">
+                      {screenShareError}
+                    </div>
+                  ) : null}
+                  <div className="mt-16 flex flex-wrap gap-8">
+                    {screenShareState === "active" ? (
+                      <TextButton onClick={onStopScreenShare}>
+                        Stop screen share
+                      </TextButton>
+                    ) : (
+                      <TextButton
+                        onClick={onStartScreenShare}
+                        disabled={screenShareState === "starting"}
+                      >
+                        {screenShareState === "starting"
+                          ? "Starting..."
+                          : "Share a window or screen"}
+                      </TextButton>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="my-40">
                 <div className="my-16 typography-20 font-bold">VRM model</div>
                 <div className="my-8">
                   <TextButton onClick={onClickOpenVrmFile}>Load VRM</TextButton>
@@ -619,3 +734,27 @@ export const Settings = ({
     </div>
   );
 };
+
+function formatScreenShareFrameStats(
+  width: number,
+  height: number,
+  byteLength: number,
+) {
+  if (width <= 0 || height <= 0 || byteLength <= 0) {
+    return "No frame yet";
+  }
+
+  return `${width}x${height}, ${Math.max(1, Math.round(byteLength / 1024))} KB`;
+}
+
+function formatScreenShareTimestamp(timestamp: number | null) {
+  if (!timestamp) {
+    return "Not yet";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(timestamp));
+}

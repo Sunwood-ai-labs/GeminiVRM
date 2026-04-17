@@ -1,5 +1,6 @@
 import {
   GoogleGenAI,
+  type LiveSendRealtimeInputParameters,
   MediaResolution,
   Modality,
   type LiveServerMessage,
@@ -10,6 +11,10 @@ import {
   DEFAULT_GEMINI_VOICE_NAME,
   resolveGeminiVoiceName,
 } from "./geminiLiveConfig";
+import type {
+  ScreenShareCaptureFrame,
+  ScreenShareCaptureSession,
+} from "./screenShareCapture";
 
 export type GeminiLiveTurnResult = {
   transcript: string;
@@ -30,6 +35,7 @@ type GeminiLiveChatParams = {
   systemPrompt: string;
   model?: string;
   voiceName?: string;
+  screenShareSession?: ScreenShareCaptureSession | null;
   onPartialTranscript?: (transcript: string) => void;
   onAudioChunk?: (chunk: GeminiLiveAudioChunk) => void;
 };
@@ -40,6 +46,7 @@ export async function getGeminiLiveChatResponse({
   systemPrompt,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
+  screenShareSession,
   onPartialTranscript,
   onAudioChunk,
 }: GeminiLiveChatParams): Promise<GeminiLiveChatResponse> {
@@ -53,6 +60,7 @@ export async function getGeminiLiveChatResponse({
     model,
     onAudioChunk,
     onPartialTranscript,
+    screenShareSession,
     systemPrompt,
     voiceName,
   });
@@ -64,12 +72,18 @@ async function runGeminiLiveChat({
   systemPrompt,
   model,
   voiceName,
+  screenShareSession,
   onAudioChunk,
   onPartialTranscript,
 }: Required<
-  Pick<GeminiLiveChatParams, "apiKey" | "messages" | "systemPrompt" | "model" | "voiceName">
+  Pick<
+    GeminiLiveChatParams,
+    "apiKey" | "messages" | "systemPrompt" | "model" | "voiceName"
+  >
 > &
-  Pick<GeminiLiveChatParams, "onAudioChunk" | "onPartialTranscript">
+  Pick<GeminiLiveChatParams, "onAudioChunk" | "onPartialTranscript"> & {
+    screenShareSession?: ScreenShareCaptureSession | null;
+  }
 ): Promise<GeminiLiveChatResponse> {
   const ai = new GoogleGenAI({
     apiKey,
@@ -83,6 +97,7 @@ async function runGeminiLiveChat({
   const audioChunks: Uint8Array[] = [];
   const resolvedVoiceName = resolveGeminiVoiceName(voiceName);
   let session: Awaited<ReturnType<typeof ai.live.connect>> | undefined;
+  let stopScreenShareRelay: (() => Promise<void>) | undefined;
 
   let resolveTurn!: () => void;
   let rejectTurn!: (error: Error) => void;
@@ -170,12 +185,20 @@ async function runGeminiLiveChat({
   });
 
   try {
+    if (screenShareSession && hasActiveScreenShareSession(screenShareSession)) {
+      stopScreenShareRelay = await startScreenShareRelay(
+        session,
+        screenShareSession,
+      );
+    }
+
     session.sendRealtimeInput({
-      text: buildRealtimeTextInput(messages),
+      text: buildRealtimeTextInput(messages, Boolean(stopScreenShareRelay)),
     });
 
     await turnFinished;
   } finally {
+    await stopScreenShareRelay?.();
     session.close();
   }
 
@@ -239,7 +262,10 @@ function concatenateAudioChunks(chunks: Uint8Array[]): Uint8Array {
   return merged;
 }
 
-function buildRealtimeTextInput(messages: Message[]): string {
+function buildRealtimeTextInput(
+  messages: Message[],
+  hasScreenShare = false,
+): string {
   const conversationalMessages = messages.filter(
     (message) => message.role !== "system",
   );
@@ -250,7 +276,7 @@ function buildRealtimeTextInput(messages: Message[]): string {
   }
 
   if (conversationalMessages.length === 1) {
-    return latestMessage.content;
+    return prependScreenShareContext(latestMessage.content, hasScreenShare);
   }
 
   const history = conversationalMessages
@@ -258,12 +284,29 @@ function buildRealtimeTextInput(messages: Message[]): string {
     .map((message) => `${getRealtimeSpeakerLabel(message)}: ${message.content}`)
     .join("\n");
 
+  return prependScreenShareContext(
+    [
+      "Conversation so far:",
+      history,
+      "",
+      "Latest user message:",
+      latestMessage.content,
+    ].join("\n"),
+    hasScreenShare,
+  );
+}
+
+function prependScreenShareContext(text: string, hasScreenShare: boolean): string {
+  if (!hasScreenShare) {
+    return text;
+  }
+
   return [
-    "Conversation so far:",
-    history,
+    "The user is also sharing live screen frames for this turn.",
+    "Treat the shared screen as primary context when it is relevant to the request.",
+    "Before the main answer, mention one concrete visible detail from the shared screen when possible so the user knows the visual input reached you.",
     "",
-    "Latest user message:",
-    latestMessage.content,
+    text,
   ].join("\n");
 }
 
@@ -273,4 +316,46 @@ function getRealtimeSpeakerLabel(message: Message): string {
   }
 
   return message.name?.trim() || "User";
+}
+
+export type GeminiLiveVideoSession = {
+  sendRealtimeInput: (params: LiveSendRealtimeInputParameters) => void;
+};
+
+export async function startScreenShareRelay(
+  session: GeminiLiveVideoSession,
+  screenShareSession: ScreenShareCaptureSession,
+): Promise<() => Promise<void>> {
+  const latestFrame = screenShareSession.getLatestFrame();
+  if (latestFrame) {
+    sendScreenShareFrame(session, screenShareSession, latestFrame);
+  }
+
+  return async () => {
+    // Single-snapshot mode intentionally stops after the latest frame.
+  };
+}
+
+export function hasActiveScreenShareSession(
+  screenShareSession: ScreenShareCaptureSession,
+): boolean {
+  return screenShareSession.stream
+    .getVideoTracks()
+    .some((track) => track.readyState === "live");
+}
+
+function sendScreenShareFrame(
+  session: GeminiLiveVideoSession,
+  screenShareSession: ScreenShareCaptureSession,
+  frame: ScreenShareCaptureFrame,
+): void {
+  const video = {
+    data: frame.data,
+    mimeType: frame.mimeType,
+  } as NonNullable<LiveSendRealtimeInputParameters["video"]>;
+
+  session.sendRealtimeInput({
+    video,
+  });
+  screenShareSession.markFrameStreamed();
 }

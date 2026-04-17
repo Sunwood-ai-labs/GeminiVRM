@@ -14,9 +14,12 @@ import {
   resolveGeminiVoiceName,
 } from "../chat/geminiLiveConfig";
 import {
+  hasActiveScreenShareSession,
+  startScreenShareRelay,
   type GeminiLiveAudioChunk,
   type GeminiLiveTurnResult,
 } from "../chat/geminiLiveChat";
+import type { ScreenShareCaptureSession } from "../chat/screenShareCapture";
 
 export type GeminiLiveAudioRelayResponse = GeminiLiveTurnResult & {
   inputTranscript: string;
@@ -31,6 +34,7 @@ type GeminiLiveAudioRelayParams = {
   relayAudioMimeType: string;
   model?: string;
   voiceName?: string;
+  screenShareSession?: ScreenShareCaptureSession | null;
   onPartialTranscript?: (transcript: string) => void;
   onAudioChunk?: (chunk: GeminiLiveAudioChunk) => void;
 };
@@ -54,6 +58,7 @@ export async function createGeminiLiveAudioRelaySession(
     systemPrompt,
     model = DEFAULT_GEMINI_LIVE_MODEL,
     voiceName = DEFAULT_GEMINI_VOICE_NAME,
+    screenShareSession,
     onPartialTranscript,
     onAudioChunk,
   } = params;
@@ -75,6 +80,7 @@ export async function createGeminiLiveAudioRelaySession(
   const resolvedVoiceName = resolveGeminiVoiceName(voiceName);
   const relayAudioNormalizer = createRelayAudioStreamNormalizer();
   let session: Awaited<ReturnType<typeof ai.live.connect>> | undefined;
+  let stopScreenShareRelay: (() => Promise<void>) | undefined;
   let audioStreamEndResolve!: () => void;
   let audioStreamEndReject!: (error: Error) => void;
   let completion: Promise<GeminiLiveAudioRelayResponse> | undefined;
@@ -115,6 +121,8 @@ export async function createGeminiLiveAudioRelaySession(
     new Error(
       error instanceof Error ? error.message : String(error ?? "Gemini Live error.")
     );
+  const hasScreenShare =
+    !!screenShareSession && hasActiveScreenShareSession(screenShareSession);
 
   session = await ai.live.connect({
     model,
@@ -173,7 +181,10 @@ export async function createGeminiLiveAudioRelaySession(
           disabled: true,
         },
         activityHandling: ActivityHandling.NO_INTERRUPTION,
-        turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+        turnCoverage:
+          hasScreenShare
+            ? TurnCoverage.TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO
+            : TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
       },
       speechConfig: {
         voiceConfig: {
@@ -184,9 +195,19 @@ export async function createGeminiLiveAudioRelaySession(
       },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
-      systemInstruction: systemPrompt,
+      systemInstruction: prependScreenShareSystemInstruction(
+        systemPrompt,
+        hasScreenShare,
+      ),
     },
   });
+
+  if (hasScreenShare) {
+    stopScreenShareRelay = await startScreenShareRelay(
+      session,
+      screenShareSession!,
+    );
+  }
 
   const normalizeAndSendRelayAudioChunk = (
     audioBytes: Uint8Array,
@@ -259,6 +280,7 @@ export async function createGeminiLiveAudioRelaySession(
 
         await turnFinished;
       } finally {
+        await stopScreenShareRelay?.();
         try {
           session?.close();
         } catch {
@@ -304,6 +326,7 @@ export async function getGeminiLiveAudioRelayResponse({
   relayAudioMimeType,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
+  screenShareSession,
   onPartialTranscript,
   onAudioChunk,
 }: GeminiLiveAudioRelayParams): Promise<GeminiLiveAudioRelayResponse> {
@@ -313,6 +336,7 @@ export async function getGeminiLiveAudioRelayResponse({
     model,
     systemPrompt,
     voiceName,
+    screenShareSession,
     onAudioChunk,
     onPartialTranscript,
   });
@@ -589,4 +613,21 @@ function encodeInt16Samples(samples: number[]): Uint8Array {
   });
 
   return bytes;
+}
+
+function prependScreenShareSystemInstruction(
+  instruction: string,
+  hasScreenShare: boolean,
+): string {
+  if (!hasScreenShare) {
+    return instruction;
+  }
+
+  return [
+    instruction,
+    "",
+    "The user is also sharing live screen frames for this turn.",
+    "Treat the shared screen as primary context when it is relevant to the request.",
+    "Before the main answer, mention one concrete visible detail from the shared screen when possible so the user knows the visual input reached you.",
+  ].join("\n");
 }

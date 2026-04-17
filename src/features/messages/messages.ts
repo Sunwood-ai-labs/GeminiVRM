@@ -2,10 +2,21 @@ import { VRMExpression, VRMExpressionPresetName } from "@pixiv/three-vrm";
 import { KoeiroParam } from "../constants/koeiroParam";
 
 // ChatGPT API
+export type MessageInputImage = {
+  byteLength: number;
+  capturedAt: number;
+  dataUrl?: string;
+  height: number;
+  label?: string;
+  mimeType: string;
+  width: number;
+};
+
 export type Message = {
   role: "assistant" | "system" | "user";
   content: string;
   displayContent?: string;
+  inputImage?: MessageInputImage;
   name?: string;
   source?: "manual" | "podcast" | "youtube" | "system" | "assistant";
   externalId?: string;

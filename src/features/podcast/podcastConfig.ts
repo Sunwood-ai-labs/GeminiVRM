@@ -1,4 +1,4 @@
-import type { Message } from "../messages/messages";
+import type { Message, MessageInputImage } from "../messages/messages";
 import { DEFAULT_GEMINI_VOICE_NAME } from "../chat/geminiLiveConfig";
 
 export type InteractionMode = "chat" | "podcast";
@@ -20,6 +20,7 @@ export type PodcastTurn = {
   transcript: string;
   audioMimeType: string;
   audioBytes: Uint8Array;
+  inputImage?: MessageInputImage;
 };
 
 export const DEFAULT_PODCAST_TURN_COUNT = 6;
@@ -98,6 +99,7 @@ export function buildPodcastDisplayLog(turns: PodcastTurn[]): Message[] {
   return turns.map((turn) => ({
     role: "assistant",
     content: turn.transcript,
+    inputImage: turn.inputImage,
     name: turn.speakerName,
     source: "podcast",
   }));
