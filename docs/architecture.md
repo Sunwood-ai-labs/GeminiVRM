@@ -13,9 +13,9 @@ The current architecture optimizes for:
 
 ## Runtime Flow
 
-1. The user sends a prompt from the main page, either as typed text or as a push-to-talk microphone turn.
+1. The user sends a prompt from the main page, either as typed text, a push-to-talk microphone turn, or a hands-free microphone session.
 2. `src/pages/index.tsx` starts streaming playback mode on the active model.
-3. Text turns use `src/features/chat/geminiLiveChat.ts`, while microphone turns use `src/features/chat/geminiLiveMicChat.ts` plus `src/features/chat/microphoneCapture.ts`.
+3. Text turns use `src/features/chat/geminiLiveChat.ts`, push-to-talk turns use `src/features/chat/geminiLiveMicChat.ts`, and hands-free sessions use `src/features/chat/geminiLiveHandsFreeChat.ts` plus `src/features/chat/microphoneCapture.ts`.
 4. The active Gemini Live session forwards transcript updates plus PCM audio chunks.
 5. `src/features/lipSync/lipSync.ts` validates PCM metadata, queues chunk playback, and keeps the analyser fed for mouth movement.
 6. `src/features/vrmViewer/model.ts` bridges the audio stream into the VRM runtime.
@@ -36,6 +36,8 @@ The current architecture optimizes for:
   - Gemini Live connection lifecycle, realtime text input formatting for `gemini-3.1-flash-live-preview`, chunk forwarding, and transcript assembly
 - `src/features/chat/geminiLiveMicChat.ts`
   - direct microphone-to-Gemini Live turn orchestration, history priming, input transcription, and streamed response audio
+- `src/features/chat/geminiLiveHandsFreeChat.ts`
+  - long-lived automatic-VAD Gemini Live session orchestration for hands-free chat
 - `src/features/chat/microphoneCapture.ts`
   - browser microphone capture and PCM chunk extraction for live audio turns
 - `src/features/chat/geminiLiveConfig.ts`

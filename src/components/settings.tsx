@@ -7,6 +7,10 @@ import {
   Message,
 } from "@/features/messages/messages";
 import {
+  CHAT_MIC_MODES,
+  type ChatMicMode,
+} from "@/features/chat/chatMicMode";
+import {
   DEFAULT_GEMINI_VOICE_NAME,
   GEMINI_VOICE_PRESETS,
 } from "@/features/chat/geminiLiveConfig";
@@ -21,6 +25,7 @@ type Props = {
   geminiApiKey: string;
   geminiModel: string;
   geminiVoiceName: string;
+  chatMicMode: ChatMicMode;
   interactionMode: InteractionMode;
   screenShareState: "idle" | "starting" | "active" | "error";
   screenShareError: string;
@@ -36,6 +41,7 @@ type Props = {
   onChangeGeminiApiKey: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onChangeGeminiModel: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onChangeGeminiVoiceName: (voiceName: string) => void;
+  onChangeChatMicMode: (mode: ChatMicMode) => void;
   onChangeInteractionMode: (mode: InteractionMode) => void;
   onStartScreenShare: () => void;
   onStopScreenShare: () => void;
@@ -55,6 +61,7 @@ export const Settings = ({
   geminiApiKey,
   geminiModel,
   geminiVoiceName,
+  chatMicMode,
   interactionMode,
   screenShareState,
   screenShareError,
@@ -70,6 +77,7 @@ export const Settings = ({
   onChangeGeminiApiKey,
   onChangeGeminiModel,
   onChangeGeminiVoiceName,
+  onChangeChatMicMode,
   onChangeInteractionMode,
   onStartScreenShare,
   onStopScreenShare,
@@ -373,6 +381,56 @@ export const Settings = ({
                     Open podcast settings
                   </div>
                 </button>
+              </div>
+
+              <div className="my-24">
+                <div className="my-16 typography-20 font-bold">
+                  Microphone mode
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label="Microphone mode"
+                  className="grid gap-12 md:grid-cols-2"
+                >
+                  {CHAT_MIC_MODES.map((mode) => {
+                    const isSelected = chatMicMode === mode;
+
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => onChangeChatMicMode(mode)}
+                        className={`rounded-16 border px-16 py-16 text-left transition ${
+                          isSelected
+                            ? "border-primary bg-primary text-white shadow-lg"
+                            : "border-black/10 bg-white/70 text-text1 hover:border-primary/40 hover:bg-surface1"
+                        }`}
+                      >
+                        <div className="typography-20 font-bold">
+                          {mode === "push_to_talk"
+                            ? "Push to talk"
+                            : "Hands-free"}
+                        </div>
+                        <p
+                          className={`mt-10 text-sm leading-relaxed ${
+                            isSelected ? "text-white/90" : "text-text2"
+                          }`}
+                        >
+                          {mode === "push_to_talk"
+                            ? "Click once to start recording and again to send one voice turn."
+                            : "Keep the mic open and let Gemini reply automatically when you pause."}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-8 text-sm">
+                  Hands-free uses Gemini Live&apos;s automatic voice activity
+                  detection, so the same mic button becomes a start / stop
+                  toggle for an open conversation.
+                </div>
               </div>
 
               <div className="my-24">

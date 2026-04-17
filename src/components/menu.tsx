@@ -6,6 +6,7 @@ import { Settings } from "./settings";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import { AssistantText } from "./assistantText";
 import { BuiltInMotionId } from "@/features/vrmViewer/builtInMotions";
+import type { ChatMicMode } from "@/features/chat/chatMicMode";
 import { InteractionMode } from "@/features/podcast/podcastConfig";
 import type { ScreenShareCaptureStats } from "@/features/chat/screenShareCapture";
 
@@ -13,6 +14,7 @@ type Props = {
   geminiApiKey: string;
   geminiModel: string;
   geminiVoiceName: string;
+  chatMicMode: ChatMicMode;
   interactionMode: InteractionMode;
   screenShareState: "idle" | "starting" | "active" | "error";
   screenShareError: string;
@@ -31,6 +33,7 @@ type Props = {
   onChangeGeminiApiKey: (key: string) => void;
   onChangeGeminiModel: (model: string) => void;
   onChangeGeminiVoiceName: (voiceName: string) => void;
+  onChangeChatMicMode: (mode: ChatMicMode) => void;
   onChangeInteractionMode: (mode: InteractionMode) => void;
   onStartScreenShare: () => void;
   onStopScreenShare: () => void;
@@ -48,6 +51,7 @@ export const Menu = ({
   geminiApiKey,
   geminiModel,
   geminiVoiceName,
+  chatMicMode,
   interactionMode,
   screenShareState,
   screenShareError,
@@ -66,6 +70,7 @@ export const Menu = ({
   onChangeGeminiApiKey,
   onChangeGeminiModel,
   onChangeGeminiVoiceName,
+  onChangeChatMicMode,
   onChangeInteractionMode,
   onStartScreenShare,
   onStopScreenShare,
@@ -170,6 +175,7 @@ export const Menu = ({
           geminiApiKey={geminiApiKey}
           geminiModel={geminiModel}
           geminiVoiceName={geminiVoiceName}
+          chatMicMode={chatMicMode}
           interactionMode={interactionMode}
           screenShareState={screenShareState}
           screenShareError={screenShareError}
@@ -185,6 +191,7 @@ export const Menu = ({
           onChangeGeminiApiKey={handleGeminiApiKeyChange}
           onChangeGeminiModel={handleGeminiModelChange}
           onChangeGeminiVoiceName={handleGeminiVoiceNameChange}
+          onChangeChatMicMode={onChangeChatMicMode}
           onChangeInteractionMode={onChangeInteractionMode}
           onStartScreenShare={onStartScreenShare}
           onStopScreenShare={onStopScreenShare}

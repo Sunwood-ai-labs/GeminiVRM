@@ -20,6 +20,14 @@ import {
   YoutubeLiveControlDeck,
 } from "@/components/youtubeLiveControlDeck";
 import {
+  CHAT_MIC_MODES,
+  type ChatMicMode,
+} from "@/features/chat/chatMicMode";
+import {
+  createGeminiLiveHandsFreeSession,
+  type GeminiLiveHandsFreeSession,
+} from "@/features/chat/geminiLiveHandsFreeChat";
+import {
   DEFAULT_GEMINI_LIVE_MODEL,
   DEFAULT_GEMINI_VOICE_NAME,
 } from "@/features/chat/geminiLiveConfig";
@@ -120,6 +128,12 @@ type ActiveMicrophoneTurn = {
   model: Model | undefined;
 };
 
+type ActiveHandsFreeTurn = {
+  captureSession: MicrophoneCaptureSession;
+  liveSession: GeminiLiveHandsFreeSession;
+  model: Model | undefined;
+};
+
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
@@ -131,6 +145,7 @@ export default function Home() {
   const [geminiVoiceName, setGeminiVoiceName] = useState(
     DEFAULT_GEMINI_VOICE_NAME,
   );
+  const [chatMicMode, setChatMicMode] = useState<ChatMicMode>("push_to_talk");
   const [interactionMode, setInteractionMode] =
     useState<InteractionMode>("chat");
   const [podcastTurnCount, setPodcastTurnCount] = useState(
@@ -214,6 +229,7 @@ export default function Home() {
   const restoredYoutubeAccessTokenRef = useRef<string | null>(null);
   const screenShareSessionRef = useRef<ScreenShareCaptureSession | null>(null);
   const activeMicrophoneTurnRef = useRef<ActiveMicrophoneTurn | null>(null);
+  const activeHandsFreeTurnRef = useRef<ActiveHandsFreeTurn | null>(null);
 
   interactionModeRef.current = interactionMode;
   podcastTurnCountRef.current = podcastTurnCount;
@@ -359,6 +375,11 @@ export default function Home() {
         setPodcastLog(params.podcastLog ?? []);
         setGeminiModel(params.geminiModel ?? DEFAULT_GEMINI_LIVE_MODEL);
         setGeminiVoiceName(params.geminiVoiceName ?? DEFAULT_GEMINI_VOICE_NAME);
+        setChatMicMode(
+          CHAT_MIC_MODES.includes(params.chatMicMode)
+            ? params.chatMicMode
+            : "push_to_talk",
+        );
         setInteractionMode(
           params.interactionMode === "podcast" ? "podcast" : "chat",
         );
@@ -453,14 +474,15 @@ export default function Home() {
   useEffect(() => {
     window.localStorage.setItem(
       CHAT_VRM_PARAMS_STORAGE_KEY,
-      JSON.stringify({
-        systemPrompt,
-        chatLog: chatLog.map(stripTransientMessageImageData),
-        podcastLog: podcastLog.map(stripTransientMessageImageData),
-        geminiModel,
-        geminiVoiceName,
-        interactionMode,
-        podcastTurnCount,
+        JSON.stringify({
+          systemPrompt,
+          chatLog: chatLog.map(stripTransientMessageImageData),
+          podcastLog: podcastLog.map(stripTransientMessageImageData),
+          geminiModel,
+          geminiVoiceName,
+          chatMicMode,
+          interactionMode,
+          podcastTurnCount,
         podcastYukitoVoiceName,
         podcastKiyokaVoiceName,
         selectedMotionId,
@@ -476,6 +498,7 @@ export default function Home() {
     podcastLog,
     geminiModel,
     geminiVoiceName,
+    chatMicMode,
     interactionMode,
     podcastTurnCount,
     podcastYukitoVoiceName,
@@ -630,11 +653,74 @@ export default function Home() {
     activeTurn.model?.stopSpeaking();
   }, []);
 
+  const abortActiveHandsFreeTurn = useCallback(async (reason?: unknown) => {
+    const activeTurn = activeHandsFreeTurnRef.current;
+    activeHandsFreeTurnRef.current = null;
+    chatProcessingRef.current = false;
+    setChatProcessing(false);
+    setIsMicRecording(false);
+
+    if (!activeTurn) {
+      return;
+    }
+
+    await activeTurn.captureSession.stop().catch(() => {});
+    await activeTurn.liveSession.close(reason).catch(() => {});
+    activeTurn.model?.stopSpeaking();
+  }, []);
+
   useEffect(() => {
     return () => {
       void abortActiveMicrophoneTurn("Page unload stopped microphone chat.");
+      void abortActiveHandsFreeTurn("Page unload stopped hands-free chat.");
     };
-  }, [abortActiveMicrophoneTurn]);
+  }, [abortActiveHandsFreeTurn, abortActiveMicrophoneTurn]);
+
+  useEffect(() => {
+    if (interactionMode !== "chat" && activeHandsFreeTurnRef.current) {
+      void abortActiveHandsFreeTurn(
+        "Hands-free chat stopped because conversation mode changed.",
+      );
+    }
+  }, [abortActiveHandsFreeTurn, interactionMode]);
+
+  useEffect(() => {
+    if (chatMicMode !== "hands_free" && activeHandsFreeTurnRef.current) {
+      void abortActiveHandsFreeTurn(
+        "Hands-free chat stopped because microphone mode changed.",
+      );
+    }
+  }, [abortActiveHandsFreeTurn, chatMicMode]);
+
+  const appendCompletedChatTurn = useCallback(
+    (
+      nextUserMessage: Message | null,
+      nextAssistantMessage: Message | null,
+      fallbackAssistantMessage?: string,
+    ) => {
+      const nextEntries = [
+        ...(nextUserMessage ? [nextUserMessage] : []),
+        ...(nextAssistantMessage ? [nextAssistantMessage] : []),
+      ];
+      const updatedChatLog = [...chatLogRef.current, ...nextEntries];
+      chatLogRef.current = updatedChatLog;
+      setChatLog(updatedChatLog);
+
+      if (nextAssistantMessage) {
+        setAssistantSpeakerName(nextAssistantMessage.name ?? "CHARACTER");
+        setAssistantMessage(
+          nextAssistantMessage.displayContent ?? nextAssistantMessage.content,
+        );
+        return;
+      }
+
+      if (fallbackAssistantMessage) {
+        setAssistantSpeakerName("CHARACTER");
+        setAssistantMessage(fallbackAssistantMessage);
+      }
+    },
+    [],
+  );
 
   const startMicrophoneChatTurn = useCallback(async () => {
     if (interactionMode !== "chat") {
@@ -775,8 +861,8 @@ export default function Home() {
         response.inputTranscript.trim() || "[Voice input transcript unavailable]";
       const assistantTranscript =
         response.transcript.trim() || "Audio response received.";
-      const updatedChatLog = [
-        ...activeTurn.historyMessages,
+      chatLogRef.current = activeTurn.historyMessages;
+      appendCompletedChatTurn(
         {
           role: "user" as const,
           content: userTranscript,
@@ -791,12 +877,7 @@ export default function Home() {
           source: "assistant" as const,
           name: "CHARACTER",
         },
-      ];
-
-      chatLogRef.current = updatedChatLog;
-      setChatLog(updatedChatLog);
-      setAssistantSpeakerName("CHARACTER");
-      setAssistantMessage(assistantTranscript);
+      );
 
       await activeTurn.model?.finishStreamingSpeak();
       setAssistantStatus("");
@@ -808,6 +889,188 @@ export default function Home() {
       setAssistantStatus("Error");
       setAssistantMessage(
         error instanceof Error ? error.message : "Microphone chat failed.",
+      );
+      return false;
+    } finally {
+      chatProcessingRef.current = false;
+      setChatProcessing(false);
+      setIsMicRecording(false);
+    }
+  }, [appendCompletedChatTurn]);
+
+  const startHandsFreeChatTurn = useCallback(async () => {
+    if (interactionMode !== "chat") {
+      setAssistantSpeakerName("");
+      setAssistantStatus("Hands-free mode is available only in Character chat.");
+      setAssistantMessage("");
+      return false;
+    }
+
+    if (!geminiApiKey) {
+      setAssistantSpeakerName("");
+      setAssistantMessage("Enter your Gemini API key first.");
+      return false;
+    }
+
+    if (chatProcessingRef.current) {
+      return false;
+    }
+
+    const activeScreenShareSession = getActiveScreenShareSession();
+    const activeModel = viewer.model;
+    let liveSession: GeminiLiveHandsFreeSession | undefined;
+    let captureSession: MicrophoneCaptureSession | undefined;
+    let hasStartedAudio = false;
+
+    chatProcessingRef.current = true;
+    setChatProcessing(true);
+    setIsMicRecording(true);
+    setAssistantSpeakerName("YOU");
+    setAssistantMessage("");
+    setAssistantStatus(
+      activeScreenShareSession
+        ? "Hands-free mode is listening with screen share..."
+        : "Hands-free mode is listening...",
+    );
+
+    try {
+      await activeModel?.beginStreamingSpeak(createNeutralScreenplay(""));
+
+      liveSession = await createGeminiLiveHandsFreeSession({
+        apiKey: geminiApiKey,
+        historyMessages: chatLogRef.current,
+        systemPrompt,
+        model: geminiModel,
+        voiceName: geminiVoiceName,
+        screenShareSession: activeScreenShareSession,
+        onInputTranscript: (partialTranscript) => {
+          if (!partialTranscript.trim()) {
+            return;
+          }
+
+          setAssistantSpeakerName("YOU");
+          setAssistantStatus("Hands-free mode is listening...");
+          setAssistantMessage(partialTranscript);
+        },
+        onOutputTranscript: (partialTranscript) => {
+          setAssistantSpeakerName("CHARACTER");
+          if (!hasStartedAudio) {
+            setAssistantStatus("Gemini is replying...");
+          }
+          setAssistantMessage(partialTranscript);
+        },
+        onAudioChunk: (chunk) => {
+          if (!hasStartedAudio) {
+            hasStartedAudio = true;
+            setAssistantSpeakerName("CHARACTER");
+            setAssistantStatus("Playing audio...");
+          }
+
+          activeModel?.appendPCMChunk(chunk.data, chunk.mimeType);
+        },
+        onTurnComplete: (turn) => {
+          hasStartedAudio = false;
+          appendCompletedChatTurn(
+            turn.inputTranscript
+              ? {
+                  role: "user" as const,
+                  content: turn.inputTranscript,
+                  displayContent: turn.inputTranscript,
+                  source: "manual" as const,
+                  name: "YOU",
+                }
+              : null,
+            turn.transcript
+              ? {
+                  role: "assistant" as const,
+                  content: turn.transcript,
+                  source: "assistant" as const,
+                  name: "CHARACTER",
+                }
+              : null,
+            turn.transcript || undefined,
+          );
+          setAssistantStatus("Hands-free mode is listening...");
+        },
+        onInterrupted: () => {
+          hasStartedAudio = false;
+          activeModel?.stopSpeaking();
+          void activeModel?.beginStreamingSpeak(createNeutralScreenplay(""));
+          setAssistantSpeakerName("YOU");
+          setAssistantStatus("Hands-free mode is listening...");
+        },
+        onError: (error) => {
+          hasStartedAudio = false;
+          activeHandsFreeTurnRef.current = null;
+          activeModel?.stopSpeaking();
+          setIsMicRecording(false);
+          chatProcessingRef.current = false;
+          setChatProcessing(false);
+          setAssistantStatus("Error");
+          setAssistantMessage(error.message);
+        },
+      });
+
+      captureSession = await createMicrophoneCaptureSession({
+        onAudioChunk: (chunk, mimeType) => {
+          liveSession?.sendUserAudioChunk(chunk, mimeType);
+        },
+      });
+
+      activeHandsFreeTurnRef.current = {
+        captureSession,
+        liveSession,
+        model: activeModel,
+      };
+
+      return true;
+    } catch (error) {
+      await captureSession?.stop().catch(() => {});
+      await liveSession?.close(error).catch(() => {});
+      activeModel?.stopSpeaking();
+      console.error(error);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error ? error.message : "Hands-free chat failed.",
+      );
+      chatProcessingRef.current = false;
+      setChatProcessing(false);
+      setIsMicRecording(false);
+      return false;
+    }
+  }, [
+    appendCompletedChatTurn,
+    geminiApiKey,
+    geminiModel,
+    geminiVoiceName,
+    getActiveScreenShareSession,
+    interactionMode,
+    systemPrompt,
+    viewer.model,
+  ]);
+
+  const stopHandsFreeChatTurn = useCallback(async () => {
+    const activeTurn = activeHandsFreeTurnRef.current;
+    if (!activeTurn) {
+      return false;
+    }
+
+    activeHandsFreeTurnRef.current = null;
+    setIsMicRecording(false);
+    setAssistantStatus("Stopping hands-free mode...");
+
+    try {
+      await activeTurn.captureSession.stop();
+      await activeTurn.liveSession.close();
+      await activeTurn.model?.finishStreamingSpeak();
+      setAssistantStatus("");
+      return true;
+    } catch (error) {
+      activeTurn.model?.stopSpeaking();
+      console.error(error);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error ? error.message : "Hands-free chat failed.",
       );
       return false;
     } finally {
@@ -1647,12 +1910,29 @@ export default function Home() {
 
   const handleToggleMicRecording = useCallback(async () => {
     if (isMicRecording) {
+      if (chatMicMode === "hands_free") {
+        await stopHandsFreeChatTurn();
+        return;
+      }
+
       await stopMicrophoneChatTurn();
       return;
     }
 
+    if (chatMicMode === "hands_free") {
+      await startHandsFreeChatTurn();
+      return;
+    }
+
     await startMicrophoneChatTurn();
-  }, [isMicRecording, startMicrophoneChatTurn, stopMicrophoneChatTurn]);
+  }, [
+    chatMicMode,
+    isMicRecording,
+    startHandsFreeChatTurn,
+    startMicrophoneChatTurn,
+    stopHandsFreeChatTurn,
+    stopMicrophoneChatTurn,
+  ]);
 
   const dispatchExternalControlCommand = useCallback(
     async (
@@ -2324,11 +2604,12 @@ export default function Home() {
         onChatProcessStart={handleSendChat}
         onToggleMicRecording={handleToggleMicRecording}
       />
-      <Menu
-        geminiApiKey={geminiApiKey}
-        geminiModel={geminiModel}
-        geminiVoiceName={geminiVoiceName}
-        interactionMode={interactionMode}
+        <Menu
+          geminiApiKey={geminiApiKey}
+          geminiModel={geminiModel}
+          geminiVoiceName={geminiVoiceName}
+          chatMicMode={chatMicMode}
+          interactionMode={interactionMode}
         screenShareState={screenShareState}
         screenShareError={screenShareError}
         screenShareSourceLabel={screenShareSourceLabel}
@@ -2342,10 +2623,11 @@ export default function Home() {
         assistantMessage={assistantMessage}
         assistantStatus={assistantStatus}
         assistantSpeakerName={assistantSpeakerName}
-        onChangeGeminiApiKey={setGeminiApiKey}
-        onChangeGeminiModel={setGeminiModel}
-        onChangeGeminiVoiceName={setGeminiVoiceName}
-        onChangeInteractionMode={setInteractionMode}
+          onChangeGeminiApiKey={setGeminiApiKey}
+          onChangeGeminiModel={setGeminiModel}
+          onChangeGeminiVoiceName={setGeminiVoiceName}
+          onChangeChatMicMode={setChatMicMode}
+          onChangeInteractionMode={setInteractionMode}
         onStartScreenShare={startScreenShare}
         onStopScreenShare={stopScreenShare}
         onChangePodcastTurnCount={(nextTurnCount) =>

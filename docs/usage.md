@@ -8,9 +8,15 @@ title: Usage Guide
 
 1. Start the app and provide a Gemini API key.
 2. Keep the bundled `Kiyoka.vrm` avatar or load your own `.vrm` file.
-3. Send a text prompt or click the microphone button to stream a push-to-talk voice turn directly into Gemini Live.
+3. Send a text prompt or use the microphone button for voice chat.
 4. Read the partial transcript while audio streams in.
 5. Let the viewer finish playback before sending the next prompt if you want the cleanest lip sync.
+
+## Microphone Modes
+
+- `Push to talk` keeps the current click-to-start, click-to-send voice turn flow
+- `Hands-free` keeps the microphone open and lets Gemini reply automatically after you pause
+- open `Settings` to switch between the two modes without leaving `Character chat`
 
 ## Podcast Mode
 
