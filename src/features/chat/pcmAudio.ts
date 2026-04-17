@@ -27,6 +27,10 @@ export function createPcm16MonoNormalizer({
   const pendingSamples: number[] = [];
 
   const resolveFormat = (mimeType?: string) => {
+    if (!mimeType && format) {
+      return format;
+    }
+
     const normalizedMimeType = (
       mimeType || defaultInputMimeType
     ).toLowerCase();
