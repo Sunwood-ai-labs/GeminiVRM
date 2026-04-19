@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ink: #1f2b3d;
+        --subtle: #5f6f86;
+        --blue: #2f7cf6;
+        --green: #00b894;
+        --cream: #f7f2ea;
+        --sand: #efe6d7;
+        --panel: rgba(255, 255, 255, 0.9);
+        --panel-strong: #ffffff;
+        --line: rgba(31, 43, 61, 0.09);
+        --shadow: 0 28px 70px rgba(31, 43, 61, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--cream);
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Roboto", sans-serif;
+      }
+
+      body {
+        position: relative;
+      }
+
+      img {
+        display: block;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 34%),
+          linear-gradient(135deg, #f8f3ea 0%, #f6eedf 44%, #ebf7f3 100%);
+      }
+
+      .clip {
+        position: absolute;
+      }
+
+      .full {
+        inset: 0;
+      }
+
+      .bg-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(31, 43, 61, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(31, 43, 61, 0.035) 1px, transparent 1px);
+        background-size: 120px 120px;
+        opacity: 0.55;
+      }
+
+      .shape {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(2px);
+        opacity: 0.7;
+      }
+
+      .shape-a {
+        top: -120px;
+        left: -90px;
+        width: 440px;
+        height: 440px;
+        background: radial-gradient(circle at 40% 40%, rgba(47, 124, 246, 0.26), rgba(47, 124, 246, 0));
+      }
+
+      .shape-b {
+        right: -90px;
+        bottom: -120px;
+        width: 520px;
+        height: 520px;
+        background: radial-gradient(circle at 55% 45%, rgba(0, 184, 148, 0.22), rgba(0, 184, 148, 0));
+      }
+
+      .shape-c {
+        left: 920px;
+        top: 180px;
+        width: 280px;
+        height: 280px;
+        background: radial-gradient(circle at center, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+      }
+
+      .progress-shell {
+        left: 72px;
+        right: 72px;
+        top: 54px;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.68);
+        box-shadow: inset 0 0 0 1px rgba(31, 43, 61, 0.08);
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 100%;
+        transform-origin: left center;
+        background: linear-gradient(90deg, var(--blue), #59a0ff 46%, var(--green));
+      }
+
+      .frame {
+        position: absolute;
+        left: 72px;
+        top: 84px;
+        width: 1776px;
+        height: 912px;
+        border-radius: 38px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.42));
+        box-shadow: 0 0 0 1px rgba(31, 43, 61, 0.04);
+      }
+
+      .scene {
+        inset: 0;
+        padding: 118px 110px 112px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--blue);
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        box-shadow: 0 18px 38px rgba(31, 43, 61, 0.08);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--blue), var(--green));
+      }
+
+      .headline {
+        margin-top: 24px;
+        font-family: "Noto Sans JP", "Roboto", sans-serif;
+        font-size: 74px;
+        font-weight: 800;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .lede {
+        margin-top: 20px;
+        max-width: 760px;
+        color: var(--subtle);
+        font-size: 30px;
+        line-height: 1.6;
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 32px;
+      }
+
+      .badge {
+        padding: 14px 20px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 14px 28px rgba(31, 43, 61, 0.08);
+        color: var(--ink);
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .badge.accent {
+        background: linear-gradient(135deg, rgba(47, 124, 246, 0.14), rgba(0, 184, 148, 0.16));
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 0.94fr 1.06fr;
+        align-items: center;
+        gap: 48px;
+        height: 100%;
+      }
+
+      .hero-copy {
+        padding-right: 18px;
+      }
+
+      .kicker {
+        margin-top: 34px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .metric-card {
+        min-height: 150px;
+        padding: 22px 24px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.83);
+        box-shadow: var(--shadow);
+      }
+
+      .metric-number {
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+      }
+
+      .metric-title {
+        margin-top: 14px;
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .metric-text {
+        margin-top: 10px;
+        color: var(--subtle);
+        font-size: 23px;
+        line-height: 1.5;
+      }
+
+      .hero-visual {
+        position: relative;
+        height: 720px;
+      }
+
+      .glass-card {
+        position: absolute;
+        border-radius: 34px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-main-card {
+        inset: 38px 0 0 36px;
+      }
+
+      .hero-main-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .floating-stat {
+        position: absolute;
+        padding: 20px 24px;
+        border-radius: 26px;
+        background: var(--panel-strong);
+        box-shadow: 0 22px 46px rgba(31, 43, 61, 0.14);
+      }
+
+      .floating-stat strong {
+        display: block;
+        font-size: 34px;
+        font-weight: 800;
+      }
+
+      .floating-stat span {
+        display: block;
+        margin-top: 8px;
+        color: var(--subtle);
+        font-size: 22px;
+        line-height: 1.35;
+      }
+
+      .stat-one {
+        top: 0;
+        right: 40px;
+        width: 280px;
+      }
+
+      .stat-two {
+        right: -10px;
+        bottom: 210px;
+        width: 320px;
+      }
+
+      .stat-three {
+        left: 0;
+        bottom: 0;
+        width: 310px;
+      }
+
+      .section-grid {
+        display: grid;
+        grid-template-columns: 0.92fr 1.08fr;
+        gap: 42px;
+        height: 100%;
+        align-items: center;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .feature-card,
+      .step-card,
+      .note-card,
+      .closing-card {
+        padding: 26px 28px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.84);
+        box-shadow: var(--shadow);
+      }
+
+      .feature-card {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 22px;
+        align-items: start;
+      }
+
+      .icon-chip {
+        width: 88px;
+        height: 88px;
+        border-radius: 24px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, rgba(47, 124, 246, 0.16), rgba(0, 184, 148, 0.18));
+        color: var(--blue);
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 30px;
+        font-weight: 700;
+      }
+
+      .card-title {
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .card-text {
+        margin-top: 10px;
+        color: var(--subtle);
+        font-size: 24px;
+        line-height: 1.55;
+      }
+
+      .shots-grid {
+        position: relative;
+        height: 720px;
+      }
+
+      .shot-wide {
+        top: 10px;
+        left: 0;
+        width: 720px;
+        height: 430px;
+        border-radius: 34px;
+      }
+
+      .shot-phone {
+        right: 34px;
+        bottom: 0;
+        width: 430px;
+        height: 640px;
+        padding: 14px;
+        border-radius: 46px;
+        background: linear-gradient(180deg, #2a3545, #11161d);
+      }
+
+      .shot-phone img {
+        width: 100%;
+        height: 100%;
+        border-radius: 34px;
+        object-fit: cover;
+      }
+
+      .shot-caption {
+        position: absolute;
+        left: 28px;
+        bottom: 28px;
+        padding: 14px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--ink);
+        font-size: 22px;
+        font-weight: 700;
+        box-shadow: 0 14px 28px rgba(31, 43, 61, 0.14);
+      }
+
+      .highlight-bar {
+        position: absolute;
+        right: 330px;
+        top: 330px;
+        width: 300px;
+        padding: 18px 22px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(47, 124, 246, 0.96), rgba(0, 184, 148, 0.92));
+        color: white;
+        box-shadow: 0 22px 46px rgba(31, 43, 61, 0.18);
+      }
+
+      .highlight-bar strong {
+        display: block;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .highlight-bar span {
+        display: block;
+        margin-top: 8px;
+        font-size: 20px;
+        line-height: 1.45;
+      }
+
+      .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 42px;
+      }
+
+      .step-number {
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 20px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--green);
+      }
+
+      .step-title {
+        margin-top: 10px;
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.18;
+      }
+
+      .step-text {
+        margin-top: 14px;
+        color: var(--subtle);
+        font-size: 24px;
+        line-height: 1.55;
+      }
+
+      .usage-visual {
+        position: relative;
+        height: 740px;
+      }
+
+      .usage-phone {
+        right: 56px;
+        top: 34px;
+        width: 432px;
+        height: 658px;
+        padding: 14px;
+        border-radius: 44px;
+        background: linear-gradient(180deg, #263244, #121821);
+      }
+
+      .usage-phone img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 30px;
+      }
+
+      .floating-note {
+        position: absolute;
+        left: 0;
+        top: 90px;
+        width: 420px;
+      }
+
+      .floating-note .note-label {
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+      }
+
+      .floating-note .note-title {
+        margin-top: 12px;
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .floating-note .note-text {
+        margin-top: 12px;
+        color: var(--subtle);
+        font-size: 23px;
+        line-height: 1.55;
+      }
+
+      .mini-pill {
+        display: inline-flex;
+        margin-top: 18px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(47, 124, 246, 0.12);
+        color: var(--blue);
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .pipeline-grid {
+        display: grid;
+        grid-template-columns: 0.82fr 1.18fr;
+        gap: 48px;
+        height: 100%;
+        align-items: center;
+      }
+
+      .pipeline-shell {
+        position: relative;
+        height: 560px;
+      }
+
+      .pipeline-line {
+        position: absolute;
+        left: 110px;
+        right: 110px;
+        top: 278px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(47, 124, 246, 0.18), rgba(0, 184, 148, 0.18));
+      }
+
+      .pipeline-glow {
+        position: absolute;
+        left: 110px;
+        top: 270px;
+        width: 220px;
+        height: 24px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(47, 124, 246, 0.78), rgba(0, 184, 148, 0.78));
+        filter: blur(2px);
+      }
+
+      .pipeline-node {
+        position: absolute;
+        top: 180px;
+        width: 240px;
+        min-height: 186px;
+        padding: 22px 24px;
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: var(--shadow);
+      }
+
+      .pipeline-node .node-tag {
+        font-family: "Montserrat", "Roboto", sans-serif;
+        font-size: 16px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--blue);
+      }
+
+      .pipeline-node .node-title {
+        margin-top: 10px;
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.22;
+      }
+
+      .pipeline-node .node-text {
+        margin-top: 10px;
+        color: var(--subtle);
+        font-size: 21px;
+        line-height: 1.45;
+      }
+
+      .node-1 { left: 0; }
+      .node-2 { left: 280px; }
+      .node-3 { left: 560px; }
+      .node-4 { left: 840px; }
+
+      .architecture-notes {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .note-card ul {
+        list-style: none;
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .note-card li {
+        color: var(--subtle);
+        font-size: 24px;
+        line-height: 1.55;
+      }
+
+      .note-card li strong {
+        color: var(--ink);
+      }
+
+      .proof-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 42px;
+        height: 100%;
+        align-items: center;
+      }
+
+      .chart-card {
+        padding: 28px;
+        border-radius: 34px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: var(--shadow);
+      }
+
+      .chart-card img {
+        width: 100%;
+        border-radius: 24px;
+      }
+
+      .closing-card {
+        padding: 32px;
+      }
+
+      .closing-card ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      .closing-card li {
+        padding-left: 24px;
+        position: relative;
+        color: var(--subtle);
+        font-size: 25px;
+        line-height: 1.55;
+      }
+
+      .closing-card li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 14px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--blue), var(--green));
+      }
+
+      .closing-message {
+        margin-top: 28px;
+        padding: 28px;
+        border-radius: 30px;
+        background: linear-gradient(135deg, rgba(47, 124, 246, 0.1), rgba(0, 184, 148, 0.1));
+      }
+
+      .closing-message strong {
+        display: block;
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .closing-message span {
+        display: block;
+        margin-top: 12px;
+        color: var(--subtle);
+        font-size: 24px;
+        line-height: 1.55;
+      }
+
+      .footer-ribbon {
+        left: 110px;
+        right: 110px;
+        bottom: 76px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.76);
+        box-shadow: 0 20px 40px rgba(31, 43, 61, 0.08);
+        color: var(--subtle);
+      }
+
+      .footer-ribbon strong {
+        color: var(--ink);
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .footer-ribbon span {
+        font-size: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="54"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="bg-layer" class="clip full" data-start="0" data-duration="54" data-track-index="0">
+        <div class="frame"></div>
+        <div class="bg-grid"></div>
+        <div class="shape shape-a"></div>
+        <div class="shape shape-b"></div>
+        <div class="shape shape-c"></div>
+      </div>
+
+      <div
+        id="progress-shell"
+        class="clip progress-shell"
+        data-start="0"
+        data-duration="54"
+        data-track-index="8"
+      >
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+
+      <section
+        id="scene-hero"
+        class="scene clip"
+        data-start="0"
+        data-duration="8"
+        data-track-index="1"
+      >
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <div class="eyebrow">Expo Intro</div>
+            <h1 class="headline">GeminiVRM って<br />何ができるの？</h1>
+            <p class="lede">
+              ブラウザだけで VRM アバターが話し、口パクし、さらに 2 人のポッドキャスト形式まで見せられる、
+              展示向けのデモアプリです。
+            </p>
+            <div class="badge-row">
+              <div class="badge accent">Browser-first</div>
+              <div class="badge">Gemini Live 音声</div>
+              <div class="badge">VRM アバター</div>
+            </div>
+            <div class="kicker">
+              <div class="metric-card hero-metric">
+                <div class="metric-number">Why it stands out</div>
+                <div class="metric-title">見た目で伝わる</div>
+                <div class="metric-text">話す AI をアバターで可視化。展示会でも一目で理解されます。</div>
+              </div>
+              <div class="metric-card hero-metric">
+                <div class="metric-number">For beginners</div>
+                <div class="metric-title">操作がシンプル</div>
+                <div class="metric-text">起動してモードを選び、話しかけるだけで体験が始まります。</div>
+              </div>
+              <div class="metric-card hero-metric">
+                <div class="metric-number">For demos</div>
+                <div class="metric-title">単体でも回せる</div>
+                <div class="metric-text">ローカル中心の構成で、サーバ必須にしなくても試しやすい設計です。</div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-visual">
+            <div class="glass-card hero-main-card">
+              <img src="./assets/repo-hero.svg" alt="GeminiVRM hero" />
+            </div>
+            <div class="floating-stat stat-one">
+              <strong>1人会話</strong>
+              <span>音声ストリーミングと口パクをそのまま表示</span>
+            </div>
+            <div class="floating-stat stat-two">
+              <strong>2人トーク</strong>
+              <span>Yukito と Kiyoka が交互に話す Podcast mode</span>
+            </div>
+            <div class="floating-stat stat-three">
+              <strong>展示導線</strong>
+              <span>Docs と GitHub への導線も UI に内蔵</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="scene-features"
+        class="scene clip"
+        data-start="8"
+        data-duration="10"
+        data-track-index="1"
+      >
+        <div class="section-grid">
+          <div>
+            <div class="eyebrow">Core Features</div>
+            <h2 class="headline">まずは何ができるかを<br />3つに絞って見せる</h2>
+            <div class="stack" style="margin-top: 34px">
+              <div class="feature-card feature-item">
+                <div class="icon-chip">01</div>
+                <div>
+                  <div class="card-title">アバターがその場で応答</div>
+                  <div class="card-text">
+                    Gemini Live の transcript と音声をブラウザで受け取り、
+                    Kiyoka などの VRM アバターに自然な会話体験として載せます。
+                  </div>
+                </div>
+              </div>
+              <div class="feature-card feature-item">
+                <div class="icon-chip">02</div>
+                <div>
+                  <div class="card-title">マイク操作を選べる</div>
+                  <div class="card-text">
+                    Push to talk と Hands-free の両方に対応。
+                    展示の進行役が使っても、来場者が触っても導線が崩れません。
+                  </div>
+                </div>
+              </div>
+              <div class="feature-card feature-item">
+                <div class="icon-chip">03</div>
+                <div>
+                  <div class="card-title">2人の掛け合いもできる</div>
+                  <div class="card-text">
+                    Podcast mode では Yukito と Kiyoka が交互に短く話し、
+                    デモらしい賑やかさを自動で作れます。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="shots-grid">
+            <div class="glass-card shot-wide feature-shot">
+              <img src="./assets/ogp.jpg" alt="GeminiVRM overview screen" style="width: 100%; height: 100%; object-fit: cover" />
+              <div class="shot-caption">一目で分かる VRM ビジュアル</div>
+            </div>
+            <div class="glass-card shot-phone feature-shot phone-shell">
+              <img src="./assets/podcast-speaking.png" alt="Podcast mode speaking screen" />
+            </div>
+            <div class="highlight-bar feature-highlight">
+              <strong>展示で強い見せ場</strong>
+              <span>静止画ではなく “会話している様子” をそのまま演出できる。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="scene-usage"
+        class="scene clip"
+        data-start="18"
+        data-duration="11"
+        data-track-index="1"
+      >
+        <div class="section-grid">
+          <div>
+            <div class="eyebrow">Simple Flow</div>
+            <h2 class="headline">初心者には<br />この 3 ステップで説明</h2>
+            <p class="lede">
+              専門用語を増やさず、操作の流れを短く切ると展示会で伝わりやすくなります。
+            </p>
+            <div class="steps-grid">
+              <div class="step-card step-item">
+                <div class="step-number">STEP 1</div>
+                <div class="step-title">起動して<br />Start</div>
+                <div class="step-text">Gemini API key を入れたら、まずは起動。入口はここだけです。</div>
+              </div>
+              <div class="step-card step-item">
+                <div class="step-number">STEP 2</div>
+                <div class="step-title">モードを<br />選ぶ</div>
+                <div class="step-text">Character chat か Podcast mode を Settings から切り替えます。</div>
+              </div>
+              <div class="step-card step-item">
+                <div class="step-number">STEP 3</div>
+                <div class="step-title">話しかけて<br />見せる</div>
+                <div class="step-text">テキスト、マイク、ハンズフリー。見せたい体験に合わせて選べます。</div>
+              </div>
+            </div>
+          </div>
+          <div class="usage-visual">
+            <div class="floating-note note-card usage-note">
+              <div class="note-label">Tour guide</div>
+              <div class="note-title">Settings に操作の軸が集約</div>
+              <div class="note-text">
+                モデル、声、ポッドキャストのターン数、さらに Streaming と YouTube relay まで
+                1 か所から触れる構成です。
+              </div>
+              <div class="mini-pill">迷いにくい導線</div>
+            </div>
+            <div class="glass-card usage-phone usage-shot">
+              <img src="./assets/podcast-ready.png" alt="Podcast mode ready screen" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="scene-architecture"
+        class="scene clip"
+        data-start="29"
+        data-duration="12"
+        data-track-index="1"
+      >
+        <div class="pipeline-grid">
+          <div>
+            <div class="eyebrow">How It Works</div>
+            <h2 class="headline">裏側は<br />この流れで動く</h2>
+            <p class="lede">
+              重要なのは、音声が最後にまとめて届くのではなく、
+              ストリーミングで届いた PCM をそのまま口パクと再生へ繋いでいる点です。
+            </p>
+          </div>
+          <div class="pipeline-shell">
+            <div class="pipeline-line"></div>
+            <div id="pipeline-glow" class="pipeline-glow"></div>
+            <div class="pipeline-node pipeline-item node-1">
+              <div class="node-tag">Input</div>
+              <div class="node-title">テキスト / マイク</div>
+              <div class="node-text">来場者やスタッフの入力を UI から受け取る。</div>
+            </div>
+            <div class="pipeline-node pipeline-item node-2">
+              <div class="node-tag">Gemini Live</div>
+              <div class="node-title">Transcript と音声</div>
+              <div class="node-text">リアルタイムで応答が返り、文字と音が同時進行で届く。</div>
+            </div>
+            <div class="pipeline-node pipeline-item node-3">
+              <div class="node-tag">Lip Sync</div>
+              <div class="node-title">PCM を解析</div>
+              <div class="node-text">チャンク再生と analyser を回して口の動きに反映。</div>
+            </div>
+            <div class="pipeline-node pipeline-item node-4">
+              <div class="node-tag">VRM Viewer</div>
+              <div class="node-title">アバターが話す</div>
+              <div class="node-text">モーション、表情、音声が合わさって展示向けの見栄えになる。</div>
+            </div>
+          </div>
+        </div>
+        <div class="architecture-notes" style="position: absolute; left: 110px; bottom: 126px; width: 720px">
+          <div class="note-card architecture-note">
+            <div class="card-title">初心者への言い換え</div>
+            <ul>
+              <li><strong>音が早い:</strong> 返答を全部待たずに、届いた分から話し始める。</li>
+              <li><strong>見た目も同期:</strong> 口パクと音声が別々ではなく、同じ流れで繋がる。</li>
+              <li><strong>ローカル中心:</strong> デモを小さく始めやすい。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="scene-proof"
+        class="scene clip"
+        data-start="41"
+        data-duration="13"
+        data-track-index="1"
+      >
+        <div class="proof-grid">
+          <div>
+            <div class="eyebrow">Why It Works At Expo</div>
+            <h2 class="headline">展示会では<br />“分かりやすさ” が武器</h2>
+            <div class="chart-card proof-chart">
+              <img src="./assets/podcast-benchmark-ja.png" alt="Podcast benchmark chart in Japanese" />
+            </div>
+          </div>
+          <div class="stack">
+            <div class="closing-card proof-closing">
+              <div class="card-title">来場者にはこの順で刺さる</div>
+              <ul>
+                <li>まずアバターが話している絵で興味を引く</li>
+                <li>次に Podcast mode で “掛け合い” を見せる</li>
+                <li>最後に Docs や benchmark で仕組みと信頼感を補強する</li>
+              </ul>
+            </div>
+            <div class="closing-message proof-message">
+              <strong>GeminiVRM は、<br />会話 AI を “見える体験” に変える展示デモ。</strong>
+              <span>
+                Browser-first、Gemini Live、VRM 表現、そして資料導線まで揃っているので、
+                初見の人にも短時間で価値を伝えやすい構成です。
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div
+        id="footer-ribbon"
+        class="clip footer-ribbon"
+        data-start="0"
+        data-duration="54"
+        data-track-index="9"
+      >
+        <strong>GeminiVRM showcase video</strong>
+        <span>GitHub: Sunwood-ai-labs/GeminiVRM</span>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power2.out" } });
+
+      tl.from("#progress-fill", {
+        scaleX: 0,
+        duration: 54,
+        ease: "none",
+        transformOrigin: "left center",
+      }, 0);
+
+      tl.to(".shape-a", { x: 90, y: 10, duration: 54, ease: "sine.inOut" }, 0);
+      tl.to(".shape-b", { x: -80, y: -20, duration: 54, ease: "sine.inOut" }, 0);
+      tl.to(".shape-c", { x: -60, y: 50, duration: 54, ease: "sine.inOut" }, 0);
+
+      tl.from("#footer-ribbon", { y: 30, opacity: 0, duration: 0.9 }, 0.25);
+
+      tl.from("#scene-hero .eyebrow", { y: 28, opacity: 0, duration: 0.7 }, 0.1);
+      tl.from("#scene-hero .headline", { y: 42, opacity: 0, duration: 0.95 }, 0.28);
+      tl.from("#scene-hero .lede", { y: 28, opacity: 0, duration: 0.8 }, 0.62);
+      tl.from("#scene-hero .badge", { y: 20, opacity: 0, duration: 0.55, stagger: 0.12 }, 1.0);
+      tl.from("#scene-hero .hero-metric", { y: 24, opacity: 0, duration: 0.7, stagger: 0.14 }, 1.18);
+      tl.from("#scene-hero .hero-main-card", { x: 60, opacity: 0, scale: 0.94, duration: 1.0 }, 0.4);
+      tl.from("#scene-hero .floating-stat", { y: 30, opacity: 0, scale: 0.92, duration: 0.75, stagger: 0.16 }, 1.02);
+      tl.to("#scene-hero .hero-main-card", { y: -10, scale: 1.018, duration: 6.2, ease: "sine.inOut" }, 1.45);
+      tl.to("#scene-hero .floating-stat", { y: "-=8", duration: 3.6, stagger: 0.12, yoyo: true, repeat: 1, ease: "sine.inOut" }, 2.2);
+      tl.to("#scene-hero", { opacity: 0, y: -18, duration: 0.55, ease: "power1.in" }, 7.35);
+
+      tl.from("#scene-features .eyebrow", { y: 28, opacity: 0, duration: 0.65 }, 8.1);
+      tl.from("#scene-features .headline", { y: 36, opacity: 0, duration: 0.85 }, 8.28);
+      tl.from("#scene-features .feature-item", { x: -28, opacity: 0, duration: 0.72, stagger: 0.14 }, 8.72);
+      tl.from("#scene-features .shot-wide", { x: 40, opacity: 0, scale: 0.95, duration: 0.95 }, 8.5);
+      tl.from("#scene-features .phone-shell", { x: 50, y: 40, opacity: 0, rotate: 6, duration: 0.95 }, 9.0);
+      tl.from("#scene-features .feature-highlight", { y: 26, opacity: 0, duration: 0.7 }, 9.55);
+      tl.to("#scene-features .shot-wide", { y: -8, scale: 1.02, duration: 7.2, ease: "sine.inOut" }, 9.55);
+      tl.to("#scene-features .phone-shell", { y: -14, rotate: -2, duration: 7.0, ease: "sine.inOut" }, 10.0);
+      tl.to("#scene-features", { opacity: 0, y: -18, duration: 0.55, ease: "power1.in" }, 17.25);
+
+      tl.from("#scene-usage .eyebrow", { y: 28, opacity: 0, duration: 0.65 }, 18.1);
+      tl.from("#scene-usage .headline", { y: 34, opacity: 0, duration: 0.85 }, 18.3);
+      tl.from("#scene-usage .lede", { y: 24, opacity: 0, duration: 0.75 }, 18.6);
+      tl.from("#scene-usage .step-item", { y: 30, opacity: 0, duration: 0.72, stagger: 0.14 }, 19.0);
+      tl.from("#scene-usage .usage-note", { x: -34, opacity: 0, duration: 0.8 }, 19.2);
+      tl.from("#scene-usage .usage-shot", { x: 50, y: 30, opacity: 0, rotate: -5, duration: 0.95 }, 19.45);
+      tl.to("#scene-usage .usage-shot", { y: -12, rotate: -1.5, duration: 8.0, ease: "sine.inOut" }, 20.5);
+      tl.to("#scene-usage", { opacity: 0, y: -18, duration: 0.55, ease: "power1.in" }, 28.2);
+
+      tl.from("#scene-architecture .eyebrow", { y: 28, opacity: 0, duration: 0.65 }, 29.05);
+      tl.from("#scene-architecture .headline", { y: 34, opacity: 0, duration: 0.85 }, 29.25);
+      tl.from("#scene-architecture .lede", { y: 24, opacity: 0, duration: 0.75 }, 29.55);
+      tl.from("#scene-architecture .pipeline-item", { y: 44, opacity: 0, duration: 0.7, stagger: 0.16 }, 30.05);
+      tl.from("#scene-architecture .architecture-note", { y: 28, opacity: 0, duration: 0.8 }, 30.55);
+      tl.to("#pipeline-glow", { x: 870, duration: 6.2, ease: "power1.inOut", repeat: 1, yoyo: false }, 30.4);
+      tl.to("#scene-architecture", { opacity: 0, y: -18, duration: 0.55, ease: "power1.in" }, 40.25);
+
+      tl.from("#scene-proof .eyebrow", { y: 28, opacity: 0, duration: 0.65 }, 41.1);
+      tl.from("#scene-proof .headline", { y: 34, opacity: 0, duration: 0.85 }, 41.28);
+      tl.from("#scene-proof .proof-chart", { x: -36, opacity: 0, scale: 0.96, duration: 0.9 }, 41.7);
+      tl.from("#scene-proof .proof-closing", { x: 36, opacity: 0, duration: 0.82 }, 42.0);
+      tl.from("#scene-proof .proof-message", { y: 28, opacity: 0, duration: 0.82 }, 42.45);
+      tl.to("#scene-proof .proof-chart", { y: -8, duration: 7.4, ease: "sine.inOut" }, 42.3);
+      tl.to("#scene-proof .proof-message", { y: -6, duration: 7.2, ease: "sine.inOut" }, 43.35);
+      tl.to("#scene-proof", { opacity: 0.18, duration: 0.9, ease: "power1.in" }, 53.0);
+      tl.to("#footer-ribbon", { opacity: 0.32, duration: 0.8 }, 53.0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
