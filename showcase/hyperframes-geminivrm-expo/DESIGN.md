@@ -1,43 +1,44 @@
-# GeminiVRM Expo Loop Design
+# GeminiVRM Beginner Explainer Design
 
 ## Style Prompt
 
-Signal Booth is a dark cinematic exhibition-screen identity for GeminiVRM. It should feel like a live AI demo seen across a crowded booth: high-contrast, premium, animated, and immediately understandable. The avatar screenshots are treated as luminous stage material, not flat documentation. The viewer should remember one thing: conversation AI becomes visible.
+Classroom Signal is a calm, premium explainer style for a GitHub repository video that can also be played at an exhibition. It should not sound like advertising and should not address visitors directly. The video explains the project step by step for beginners: what GeminiVRM is, what VRM means, what Gemini Live does, and what modes the app provides. Each slide carries one idea only.
 
 ## Colors
 
-- `#070B12` Obsidian stage background
-- `#EAF5FF` Cold paper text
-- `#2F7CF6` Gemini signal blue
-- `#00E6B1` Live mint accent
-- `#FFB84D` Booth amber highlight
-- `#162033` Deep panel ink
+- `#070B12` dark classroom background
+- `#EAF5FF` main text
+- `#A6B6C8` secondary text
+- `#2F7CF6` Gemini blue accent
+- `#00E6B1` live audio accent
+- `#FFB84D` small highlight
+- `#162033` card / panel background
 
 ## Typography
 
-- Display / Japanese headlines: `"Noto Sans JP"` at 800-900 weight, very large, tight tracking
-- Latin labels and timer-like tags: `"League Gothic"` for compressed exhibit signage
-- Body / micro labels: `"Montserrat"` with high letter spacing
+- Japanese headline: `"Noto Sans JP"` 800-900 weight
+- Latin labels: `"League Gothic"` with wide letter spacing
+- Body: `"Montserrat"` for short English labels and `"Noto Sans JP"` for Japanese explanations
 
-## Components
+## Layout Rules
 
-- Full-frame dark stage with persistent signal grid, scanline grain, and moving light beams
-- Screenshot slabs: large, tilted, glowing, treated like booth displays
-- Signal chips: small labels with blue/mint borders, not generic pill buttons
-- Transition wipes: signal bars cover scene changes; no hard cuts
-- Kinetic emphasis words: one or two large terms per scene, not paragraph slides
+- 10 slides, 6 seconds each, 60 seconds total
+- One headline and one short explanation per slide
+- Use large type and generous negative space
+- Use screenshots as supporting context, not the main information
+- Screenshots must use `contain`, never crop UI edges
 
 ## Motion Rules
 
-- Every scene enters with staggered, varied GSAP `from()` motion
-- Persistent screenshots get slow push-in or parallax
-- Scene changes use signal bar wipes; scenes do not fade themselves out
-- Final scene may dim out only at the very end
+- Each slide enters with a short staggered entrance
+- Scene changes use a blue/mint signal wipe
+- Persistent visuals slowly push or drift
+- No exit animations before transitions
 
 ## What Not To Do
 
-- No white presentation-card look
-- No benchmark or developer-architecture slides for the exhibition loop
-- No forced `<br>` line breaks; use deliberate line spans or natural wrapping
-- No identical card grids
-- No tiny UI text as the main message
+- Do not say `来場者`
+- Do not turn the video into booth-operation instructions
+- Do not cram multiple feature explanations into one slide
+- Do not use benchmark or architecture-heavy content
+- Do not crop screenshots

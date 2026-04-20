@@ -1,38 +1,32 @@
-# GeminiVRM Expo Loop Storyboard
+# GeminiVRM Beginner Explainer Storyboard
 
 ## Asset Audit
 
-- `assets/ogp.jpg`: wide GeminiVRM avatar screen; use as the main booth display image.
-- `assets/podcast-speaking.png`: vertical podcast mode screenshot; use as a phone-like live monitor.
-- `assets/podcast-ready.png`: podcast ready state; use as a smaller secondary screen.
-- `assets/repo-hero.svg`: simple GeminiVRM concept graphic; use in the live interaction beat.
+- `assets/ogp.jpg`: main app screenshot, use as safe contained image.
+- `assets/podcast-speaking.png`: podcast mode speaking screenshot, use as safe contained image.
+- `assets/podcast-ready.png`: podcast mode ready screenshot, use as safe contained image.
+- `assets/repo-hero.svg`: abstract repository hero, use as a simple diagram card.
 
-## Beat 1: Hook, 0.0-7.0s
+## Timing
 
-Visual: dark exhibition stage, huge Japanese headline on the left, large `ogp.jpg` slab on the right, `podcast-speaking.png` as a smaller foreground monitor.
+Each slide is 6 seconds. Total duration is 60 seconds.
 
-Motion: headline rises and sharpens, image slabs push in slowly, signal chips stagger in. Transition to next beat uses a mint/blue horizontal signal wipe from left to right.
+## Slides
 
-## Beat 2: Live Interaction, 7.0-14.0s
+1. GeminiVRM overview. Use `ogp.jpg`.
+2. VRM explanation. Use simple avatar card from `repo-hero.svg`.
+3. Gemini Live explanation. Use `repo-hero.svg` and waveform decoration.
+4. One-on-one character chat. Use `ogp.jpg`.
+5. Text input flow. Use `ogp.jpg` with the input area visible via contained screenshot.
+6. Microphone flow. Use signal chips and waveform decoration.
+7. Lip sync. Use `ogp.jpg` plus waveform motif.
+8. Podcast mode. Use `podcast-speaking.png` and `podcast-ready.png`.
+9. Settings. Use existing screenshots as context and text explanation only.
+10. Closing. Use `ogp.jpg` and repository label.
 
-Visual: three kinetic verbs dominate: `話す`, `入力する`, `返る`. `repo-hero.svg` sits behind them as a tilted technical display. Waveform strips move subtly but remain deterministic.
+## Visual Notes
 
-Motion: words enter from different depths. Display image has slow scale. Signal wipe transition.
-
-## Beat 3: Podcast Mode, 14.0-21.0s
-
-Visual: `podcast-speaking.png` is the hero. `podcast-ready.png` is a small secondary monitor. The message emphasizes booth attention, not implementation.
-
-Motion: secondary monitor slides in first, hero monitor follows with scale and rotation. Amber topic tag pops once. Signal wipe transition.
-
-## Beat 4: Simple Setup, 21.0-28.0s
-
-Visual: three big steps across the center: `起動`, `選択`, `見せる`. The wide avatar screenshot spans the back as a low-contrast stage display.
-
-Motion: steps arrive in sequence with a crisp snap. Background screenshot drifts. Signal wipe transition.
-
-## Beat 5: Close, 28.0-36.0s
-
-Visual: single final statement, large `ogp.jpg` booth display, repo mark as a small corner label.
-
-Motion: closing text enters slowly, then the full scene dims at the final second.
+- Do not crop screenshots.
+- Keep one core sentence per slide.
+- Keep dark cinematic styling, but make the content educational rather than promotional.
+- Use signal wipe transitions between all slides.

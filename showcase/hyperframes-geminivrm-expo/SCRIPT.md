@@ -1,33 +1,63 @@
-# GeminiVRM Expo Loop Script
+# GeminiVRM Beginner Explainer Script
 
-Format: 36-second silent exhibition loop, landscape 1920x1080.
+Format: 60-second silent explainer loop, landscape 1920x1080.
 
-## Beat 1: Hook, 0.0-7.0s
+## Slide 1: 0-6s
 
-On-screen message: AIアバターが、目の前で返事する。
+Title: GeminiVRMとは？
 
-Support copy: GeminiVRM is a browser-based live avatar demo.
+Text: AIキャラクターと会話できる、ブラウザ向けのデモアプリです。
 
-## Beat 2: Live Interaction, 7.0-14.0s
+## Slide 2: 6-12s
 
-On-screen message: 話す。入力する。すぐ返る。
+Title: VRMとは？
 
-Support copy: Visitors can try text or microphone input and see the avatar respond.
+Text: 3Dキャラクターをアプリで動かすための形式です。
 
-## Beat 3: Podcast Mode, 14.0-21.0s
+## Slide 3: 12-18s
 
-On-screen message: 2人の掛け合いで、足が止まる。
+Title: Gemini Liveとは？
 
-Support copy: Yukito and Kiyoka can alternate short turns from one topic.
+Text: AIの返事を、文字と音声でリアルタイムに返す仕組みです。
 
-## Beat 4: Simple Setup, 21.0-28.0s
+## Slide 4: 18-24s
 
-On-screen message: 起動、選択、見せる。
+Title: まずは1人会話
 
-Support copy: The flow is intentionally short for booth operation.
+Text: Kiyokaなどのアバターと、1対1で会話できます。
 
-## Beat 5: Close, 28.0-36.0s
+## Slide 5: 24-30s
 
-On-screen message: 会話AIを、見える体験へ。
+Title: 文字で話せる
 
-Support copy: GeminiVRM / Sunwood-ai-labs.
+Text: 入力欄に文章を入れるだけで、AIが返事します。
+
+## Slide 6: 30-36s
+
+Title: 声でも話せる
+
+Text: マイク入力を使って、自然な会話デモにできます。
+
+## Slide 7: 36-42s
+
+Title: 口パクも動く
+
+Text: 音声に合わせて、キャラクターの口の動きも連動します。
+
+## Slide 8: 42-48s
+
+Title: 2人トークも可能
+
+Text: Podcast modeでは、YukitoとKiyokaが交互に話します。
+
+## Slide 9: 48-54s
+
+Title: 設定も画面から
+
+Text: モード、声、モデル、会話の動きをUIから調整できます。
+
+## Slide 10: 54-60s
+
+Title: 何に使える？
+
+Text: AI会話を、見た目で分かる展示・説明デモにできます。
