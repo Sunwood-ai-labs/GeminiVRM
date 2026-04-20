@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "gsap": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "computedHash": "bf85f05f3c0146c18d6f6ff23e6a4cd4a7853462a6d637ea389b610f584d55f8"
+    },
+    "hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "computedHash": "48ee08e6c9f2f1e57515b3434c7ff93b32f063871f20d12e54b6b05b92aa139e"
+    },
+    "hyperframes-cli": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "computedHash": "a6b93319450a4b9a368bb6c3c473faf08991999b5a20fed844f7202a2edcd6a3"
+    },
+    "website-to-hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "computedHash": "9459673812c2a654b431c907259eb0e67e570f18da0703d832a68dae43b2e847"
+    }
+  }
+}

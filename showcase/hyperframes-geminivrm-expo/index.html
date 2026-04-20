@@ -6,14 +6,14 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
       :root {
-        --ink: #162033;
-        --muted: #5f6b80;
+        --bg: #070b12;
+        --text: #eaf5ff;
+        --muted: #a6b6c8;
         --blue: #2f7cf6;
-        --green: #00b894;
-        --cream: #f7f2e9;
-        --line: rgba(22, 32, 51, 0.08);
-        --panel: rgba(255, 255, 255, 0.86);
-        --shadow: 0 26px 70px rgba(22, 32, 51, 0.12);
+        --mint: #00e6b1;
+        --amber: #ffb84d;
+        --panel: #162033;
+        --line: rgba(234, 245, 255, 0.14);
       }
 
       * {
@@ -27,41 +27,9 @@
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background: var(--cream);
-        color: var(--ink);
-        font-family: "Noto Sans JP", "Roboto", sans-serif;
-      }
-
-      img {
-        display: block;
-      }
-
-      .media-fill {
-        width: 100%;
-        height: 100%;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
-      }
-
-      .bg-ogp {
-        background-image: url("./assets/ogp.jpg");
-      }
-
-      .bg-speaking {
-        background-image: url("./assets/podcast-speaking.png");
-      }
-
-      .bg-ready {
-        background-image: url("./assets/podcast-ready.png");
-        background-size: contain;
-        background-color: #f3f5f7;
-      }
-
-      .bg-repohero {
-        background-image: url("./assets/repo-hero.svg");
-        background-size: contain;
-        background-color: #f8fbff;
+        background: #070b12;
+        color: #eaf5ff;
+        font-family: "Noto Sans JP", sans-serif;
       }
 
       #root {
@@ -69,10 +37,7 @@
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background:
-          radial-gradient(circle at top left, rgba(47, 124, 246, 0.16), transparent 28%),
-          radial-gradient(circle at bottom right, rgba(0, 184, 148, 0.16), transparent 28%),
-          linear-gradient(135deg, #fbf7ef 0%, #f5efe2 48%, #eef8f5 100%);
+        background: #070b12;
       }
 
       .clip {
@@ -83,568 +48,443 @@
         inset: 0;
       }
 
-      .grid {
+      .background {
+        z-index: 0;
+        background:
+          radial-gradient(circle at 18% 18%, rgba(47, 124, 246, 0.28), rgba(47, 124, 246, 0) 34%),
+          radial-gradient(circle at 82% 78%, rgba(0, 230, 177, 0.18), rgba(0, 230, 177, 0) 38%),
+          linear-gradient(135deg, #070b12 0%, #0b1321 48%, #06120f 100%);
+      }
+
+      .background::before {
+        content: "";
         position: absolute;
         inset: 0;
         background-image:
-          linear-gradient(rgba(22, 32, 51, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(22, 32, 51, 0.035) 1px, transparent 1px);
-        background-size: 120px 120px;
-        opacity: 0.52;
+          linear-gradient(rgba(234, 245, 255, 0.052) 1px, rgba(234, 245, 255, 0) 1px),
+          linear-gradient(90deg, rgba(234, 245, 255, 0.052) 1px, rgba(234, 245, 255, 0) 1px);
+        background-size: 96px 96px;
+        mask-image: radial-gradient(circle at 50% 50%, black 0%, rgba(0, 0, 0, 0.75) 44%, rgba(0, 0, 0, 0) 88%);
       }
 
-      .orb {
+      .background::after {
+        content: "";
         position: absolute;
-        border-radius: 999px;
-        filter: blur(2px);
+        inset: 0;
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.018) 0,
+            rgba(255, 255, 255, 0.018) 1px,
+            rgba(255, 255, 255, 0) 3px,
+            rgba(255, 255, 255, 0) 8px
+          );
+        mix-blend-mode: screen;
+        opacity: 0.48;
       }
 
-      .orb-a {
-        top: -120px;
-        left: -140px;
-        width: 430px;
-        height: 430px;
-        background: radial-gradient(circle at center, rgba(47, 124, 246, 0.22), rgba(47, 124, 246, 0));
-      }
-
-      .orb-b {
-        right: -100px;
-        bottom: -110px;
-        width: 520px;
-        height: 520px;
-        background: radial-gradient(circle at center, rgba(0, 184, 148, 0.22), rgba(0, 184, 148, 0));
-      }
-
-      .stage {
+      .ghost-word {
         position: absolute;
-        left: 64px;
-        top: 66px;
-        width: 1792px;
-        height: 948px;
-        border-radius: 42px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.46));
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.7),
-          0 18px 70px rgba(22, 32, 51, 0.08);
+        right: -90px;
+        top: 120px;
+        font-family: "League Gothic", sans-serif;
+        font-size: 360px;
+        line-height: 0.82;
+        letter-spacing: 0.02em;
+        color: rgba(234, 245, 255, 0.055);
+        text-transform: uppercase;
       }
 
-      .progress-shell {
-        left: 64px;
-        top: 40px;
-        width: 1792px;
-        height: 10px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.72);
-        box-shadow: inset 0 0 0 1px rgba(22, 32, 51, 0.08);
+      .ghost-word::before,
+      .ghost-word::after {
+        display: block;
       }
 
-      .progress-fill {
-        width: 100%;
-        height: 100%;
+      .ghost-word::before {
+        content: "GEMINI";
+      }
+
+      .ghost-word::after {
+        content: "VRM";
+      }
+
+      .signal-beam {
+        position: absolute;
+        height: 2px;
+        left: 72px;
+        right: 72px;
+        top: 58px;
+        background: linear-gradient(90deg, #2f7cf6, #00e6b1, rgba(234, 245, 255, 0.24));
+        box-shadow: 0 0 28px rgba(0, 230, 177, 0.4);
         transform-origin: left center;
-        background: linear-gradient(90deg, var(--blue), #58a2ff 46%, var(--green));
       }
 
-      .brand-chip {
-        top: 92px;
-        right: 98px;
-        padding: 14px 20px;
+      .brand-mark {
+        z-index: 70;
+        top: 82px;
+        right: 86px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 18px;
+        border: 1px solid rgba(234, 245, 255, 0.18);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.84);
-        color: var(--muted);
-        font-size: 20px;
+        background: rgba(7, 11, 18, 0.72);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.26);
+        color: #eaf5ff;
+        font-family: "Montserrat", sans-serif;
+        font-size: 18px;
         font-weight: 700;
-        box-shadow: 0 16px 34px rgba(22, 32, 51, 0.08);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
-      .brand-chip strong {
-        color: var(--ink);
+      .brand-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #00e6b1;
+        box-shadow: 0 0 22px #00e6b1;
       }
 
       .scene {
         inset: 0;
-        padding: 116px 100px 104px;
+        z-index: 10;
+        color: #eaf5ff;
+        background-color: rgba(7, 11, 18, 0);
+        opacity: 0;
+        visibility: hidden;
       }
 
-      .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 18px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.9);
-        color: var(--blue);
-        font-family: "Montserrat", "Roboto", sans-serif;
-        font-size: 24px;
-        font-weight: 800;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        box-shadow: 0 16px 36px rgba(22, 32, 51, 0.08);
-      }
-
-      .eyebrow::before {
-        content: "";
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--blue), var(--green));
-      }
-
-      .title {
-        margin-top: 24px;
-        font-size: 76px;
-        font-weight: 900;
-        line-height: 1.08;
-        letter-spacing: -0.04em;
-      }
-
-      .subtitle {
-        margin-top: 22px;
-        color: var(--muted);
-        font-size: 30px;
-        line-height: 1.58;
-      }
-
-      .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        margin-top: 28px;
-      }
-
-      .chip {
-        padding: 13px 18px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.82);
-        font-size: 24px;
-        font-weight: 800;
-        box-shadow: 0 14px 32px rgba(22, 32, 51, 0.08);
-      }
-
-      .chip.accent {
-        background: linear-gradient(135deg, rgba(47, 124, 246, 0.12), rgba(0, 184, 148, 0.14));
-      }
-
-      .panel {
-        border-radius: 34px;
-        background: var(--panel);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-      }
-
-      .card {
-        border-radius: 30px;
-        background: rgba(255, 255, 255, 0.86);
-        box-shadow: var(--shadow);
-      }
-
-      .scene-hero-grid {
-        display: grid;
-        grid-template-columns: 0.96fr 1.04fr;
-        gap: 44px;
-        align-items: center;
-        height: 100%;
-      }
-
-      .hero-copy {
-        max-width: 720px;
-      }
-
-      .hero-visual {
-        position: relative;
-        height: 720px;
-      }
-
-      .hero-wide {
-        position: absolute;
-        left: 0;
-        top: 34px;
-        width: 760px;
-        height: 470px;
-      }
-
-      .phone-frame {
-        padding: 14px;
-        border-radius: 46px;
-        background: linear-gradient(180deg, #273346, #10161d);
-        box-shadow: 0 28px 60px rgba(22, 32, 51, 0.22);
-      }
-
-      .phone-frame .media-fill {
+      .scene-shell {
         width: 100%;
         height: 100%;
-        border-radius: 32px;
-      }
-
-      .hero-phone {
-        position: absolute;
-        right: 16px;
-        top: 0;
-        width: 386px;
-        height: 650px;
-        transform: rotate(-2deg);
-      }
-
-      .float-card {
-        position: absolute;
-        padding: 22px 24px;
-        border-radius: 28px;
-        background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 22px 42px rgba(22, 32, 51, 0.12);
-      }
-
-      .float-card strong {
-        display: block;
-        font-size: 36px;
-        font-weight: 900;
-        line-height: 1.16;
-      }
-
-      .float-card span {
-        display: block;
-        margin-top: 10px;
-        color: var(--muted);
-        font-size: 22px;
-        line-height: 1.48;
-      }
-
-      .hero-card-a {
-        left: 28px;
-        bottom: 42px;
-        width: 290px;
-      }
-
-      .hero-card-b {
-        right: 8px;
-        bottom: 72px;
-        width: 320px;
-      }
-
-      .scene-live-grid,
-      .scene-steps-grid,
-      .scene-close-grid {
+        padding: 126px 96px 92px;
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 42px;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 58px;
         align-items: center;
-        height: 100%;
       }
 
-      .scene-wide {
-        height: 680px;
+      .scene-shell.reverse {
+        grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
       }
 
-      .scene-copy {
-        max-width: 700px;
-      }
-
-      .bullet-stack,
-      .step-stack {
+      .copy {
         display: flex;
         flex-direction: column;
-        gap: 18px;
-        margin-top: 30px;
+        gap: 26px;
+        min-width: 0;
       }
 
-      .bullet-card,
-      .step-card {
-        display: grid;
-        grid-template-columns: 88px 1fr;
-        gap: 20px;
-        padding: 24px 26px;
-      }
-
-      .num-box {
-        width: 88px;
-        height: 88px;
-        border-radius: 24px;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(135deg, rgba(47, 124, 246, 0.12), rgba(0, 184, 148, 0.14));
-        color: var(--blue);
-        font-family: "Montserrat", "Roboto", sans-serif;
-        font-size: 30px;
-        font-weight: 900;
-      }
-
-      .bullet-card strong,
-      .step-card strong {
-        display: block;
-        font-size: 36px;
-        font-weight: 900;
-        line-height: 1.18;
-      }
-
-      .bullet-card span,
-      .step-card span {
-        display: block;
-        margin-top: 8px;
-        color: var(--muted);
-        font-size: 23px;
-        line-height: 1.48;
-      }
-
-      .wave-strip {
-        margin-top: 18px;
-        padding: 20px 24px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #1e2940, #111722);
-        box-shadow: var(--shadow);
-      }
-
-      .wave-strip strong {
-        display: block;
-        color: white;
-        font-size: 28px;
-        font-weight: 900;
-      }
-
-      .wave-line {
-        margin-top: 18px;
-        height: 88px;
-        border-radius: 24px;
-        background:
-          radial-gradient(circle at 12% 50%, rgba(47, 124, 246, 0.9) 0 7px, transparent 8px),
-          radial-gradient(circle at 34% 50%, rgba(47, 124, 246, 0.8) 0 7px, transparent 8px),
-          radial-gradient(circle at 58% 50%, rgba(0, 184, 148, 0.85) 0 7px, transparent 8px),
-          radial-gradient(circle at 78% 50%, rgba(0, 184, 148, 0.92) 0 7px, transparent 8px);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .wave-line::after {
-        content: "";
-        position: absolute;
-        left: 36px;
-        right: 36px;
-        top: 50%;
-        height: 14px;
-        border-radius: 999px;
-        transform: translateY(-50%);
-        background:
-          linear-gradient(90deg,
-            transparent 0%,
-            rgba(47, 124, 246, 0.2) 8%,
-            rgba(47, 124, 246, 0.85) 18%,
-            rgba(0, 184, 148, 0.9) 48%,
-            rgba(47, 124, 246, 0.85) 74%,
-            rgba(47, 124, 246, 0.2) 92%,
-            transparent 100%);
-        clip-path: polygon(
-          0% 54%, 6% 48%, 12% 66%, 18% 40%, 24% 58%, 30% 52%, 36% 68%, 42% 34%,
-          48% 56%, 54% 42%, 60% 70%, 66% 36%, 72% 58%, 78% 46%, 84% 64%, 90% 48%, 100% 54%
-        );
-      }
-
-      .scene-podcast-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 44px;
-        align-items: center;
-        height: 100%;
-      }
-
-      .podcast-copy {
-        max-width: 700px;
-      }
-
-      .topic-bubble {
-        margin-top: 28px;
-        display: inline-block;
-        padding: 18px 22px;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.88);
-        color: var(--ink);
-        font-size: 27px;
-        font-weight: 800;
-        box-shadow: 0 18px 34px rgba(22, 32, 51, 0.1);
-      }
-
-      .podcast-visual {
-        position: relative;
-        height: 720px;
-      }
-
-      .podcast-main {
-        position: absolute;
-        right: 10px;
-        top: 0;
-        width: 420px;
-        height: 690px;
-      }
-
-      .podcast-side {
-        position: absolute;
-        left: 0;
-        top: 74px;
-        width: 560px;
-        height: 360px;
-      }
-
-      .podcast-tag {
-        position: absolute;
-        left: 70px;
-        bottom: 78px;
-        width: 370px;
-        padding: 22px 24px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, rgba(47, 124, 246, 0.95), rgba(0, 184, 148, 0.92));
-        color: white;
-        box-shadow: 0 24px 48px rgba(22, 32, 51, 0.16);
-      }
-
-      .podcast-tag strong {
-        display: block;
-        font-size: 34px;
-        font-weight: 900;
-      }
-
-      .podcast-tag span {
-        display: block;
-        margin-top: 10px;
-        font-size: 22px;
-        line-height: 1.45;
-      }
-
-      .step-row {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 18px;
-        margin-top: 34px;
-      }
-
-      .step-row .step-card {
-        grid-template-columns: 1fr;
-        padding: 24px;
-      }
-
-      .step-label {
-        font-family: "Montserrat", "Roboto", sans-serif;
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.12em;
+      .kicker {
+        align-self: flex-start;
+        padding: 10px 14px;
+        border-left: 4px solid #00e6b1;
+        color: #9ed9ff;
+        background: rgba(47, 124, 246, 0.13);
+        font-family: "League Gothic", sans-serif;
+        font-size: 32px;
+        line-height: 1;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: var(--green);
       }
 
-      .step-row .step-card strong {
-        margin-top: 12px;
-      }
-
-      .step-row .step-card span {
-        margin-top: 12px;
-      }
-
-      .steps-visual {
-        position: relative;
-        height: 710px;
-      }
-
-      .steps-wide {
-        position: absolute;
-        left: 0;
-        top: 48px;
-        width: 760px;
-        height: 470px;
-      }
-
-      .steps-note {
-        position: absolute;
-        right: 30px;
-        bottom: 36px;
-        width: 340px;
-        padding: 24px 26px;
-      }
-
-      .steps-note strong {
-        display: block;
-        font-size: 34px;
+      .display {
+        max-width: 760px;
+        font-size: 86px;
         font-weight: 900;
-        line-height: 1.16;
+        line-height: 1.04;
+        letter-spacing: -0.055em;
       }
 
-      .steps-note span {
+      .display.wide {
+        max-width: 1000px;
+      }
+
+      .display-line {
         display: block;
-        margin-top: 10px;
-        color: var(--muted);
-        font-size: 22px;
-        line-height: 1.48;
       }
 
-      .close-visual {
-        position: relative;
-        height: 710px;
-      }
-
-      .close-wide {
-        position: absolute;
-        left: 0;
-        top: 64px;
-        width: 760px;
-        height: 470px;
-      }
-
-      .close-message {
-        margin-top: 34px;
-        padding: 28px 30px;
-        border-radius: 30px;
-        background: linear-gradient(135deg, rgba(47, 124, 246, 0.1), rgba(0, 184, 148, 0.14));
-        box-shadow: var(--shadow);
-      }
-
-      .close-message strong {
-        display: block;
-        font-size: 48px;
-        font-weight: 900;
-        line-height: 1.15;
-        letter-spacing: -0.03em;
-      }
-
-      .close-message span {
-        display: block;
-        margin-top: 16px;
-        color: var(--muted);
-        font-size: 27px;
+      .subcopy {
+        max-width: 690px;
+        color: #a6b6c8;
+        font-size: 29px;
+        font-weight: 500;
         line-height: 1.55;
       }
 
-      .close-badge-row {
+      .signal-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 14px;
-        margin-top: 28px;
+        gap: 12px;
+        margin-top: 6px;
       }
 
-      .close-mini {
-        padding: 13px 18px;
+      .signal-chip {
+        padding: 10px 14px;
+        border: 1px solid rgba(0, 230, 177, 0.36);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.86);
-        font-size: 22px;
+        color: #eaf5ff;
+        background: rgba(0, 230, 177, 0.08);
+        font-family: "Montserrat", sans-serif;
+        font-size: 17px;
         font-weight: 800;
-        box-shadow: 0 14px 30px rgba(22, 32, 51, 0.08);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
-      .close-note {
-        position: absolute;
-        right: 0;
-        bottom: 28px;
-        width: 330px;
-        padding: 22px 24px;
+      .visual {
+        display: grid;
+        min-width: 0;
+        gap: 22px;
       }
 
-      .close-note strong {
+      .visual.dual {
+        grid-template-columns: 0.9fr 0.62fr;
+        align-items: end;
+      }
+
+      .screen {
+        position: relative;
+        min-height: 520px;
+        overflow: hidden;
+        border: 1px solid rgba(234, 245, 255, 0.16);
+        border-radius: 34px;
+        background: #162033;
+        box-shadow:
+          0 42px 100px rgba(0, 0, 0, 0.38),
+          0 0 70px rgba(47, 124, 246, 0.12);
+      }
+
+      .screen.wide-screen {
+        height: 620px;
+      }
+
+      .screen.small-screen {
+        height: 432px;
+        align-self: end;
+      }
+
+      .phone {
+        height: 680px;
+        border-radius: 48px;
+        padding: 14px;
+        background: linear-gradient(180deg, #2b3548, #05070d);
+      }
+
+      .phone .media {
+        border-radius: 34px;
+      }
+
+      .media {
+        width: 100%;
+        height: 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+      }
+
+      .media.contain {
+        background-size: contain;
+        background-color: #101724;
+      }
+
+      .ogp {
+        background-image: url("./assets/ogp.jpg");
+      }
+
+      .speaking {
+        background-image: url("./assets/podcast-speaking.png");
+      }
+
+      .ready {
+        background-image: url("./assets/podcast-ready.png");
+      }
+
+      .hero-svg {
+        background-image: url("./assets/repo-hero.svg");
+      }
+
+      .stage-card {
+        padding: 24px;
+        border: 1px solid rgba(234, 245, 255, 0.16);
+        border-radius: 28px;
+        background: rgba(22, 32, 51, 0.74);
+        box-shadow: 0 26px 72px rgba(0, 0, 0, 0.28);
+      }
+
+      .stage-card strong {
         display: block;
-        font-size: 32px;
+        color: #eaf5ff;
+        font-size: 36px;
+        line-height: 1.18;
         font-weight: 900;
+        letter-spacing: -0.04em;
       }
 
-      .close-note span {
+      .stage-card span {
         display: block;
         margin-top: 10px;
-        color: var(--muted);
+        color: #a6b6c8;
         font-size: 22px;
-        line-height: 1.45;
+        line-height: 1.5;
+      }
+
+      .caption-stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .verb-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .verb {
+        display: flex;
+        align-items: center;
+        min-height: 132px;
+        padding: 18px 28px;
+        border: 1px solid rgba(234, 245, 255, 0.14);
+        border-radius: 28px;
+        background:
+          linear-gradient(90deg, rgba(47, 124, 246, 0.2), rgba(0, 230, 177, 0.06)),
+          rgba(22, 32, 51, 0.76);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      }
+
+      .verb span {
+        font-size: 86px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.06em;
+      }
+
+      .verb em {
+        margin-left: auto;
+        color: #00e6b1;
+        font-family: "League Gothic", sans-serif;
+        font-style: normal;
+        font-size: 34px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .wave {
+        height: 156px;
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at 18% 50%, rgba(47, 124, 246, 0.92) 0 8px, rgba(47, 124, 246, 0) 9px),
+          radial-gradient(circle at 48% 50%, rgba(0, 230, 177, 0.92) 0 8px, rgba(0, 230, 177, 0) 9px),
+          radial-gradient(circle at 78% 50%, rgba(255, 184, 77, 0.96) 0 8px, rgba(255, 184, 77, 0) 9px),
+          rgba(7, 11, 18, 0.7);
+        border: 1px solid rgba(234, 245, 255, 0.14);
+        overflow: hidden;
+      }
+
+      .wave-line {
+        width: 86%;
+        height: 100%;
+        margin: 0 auto;
+        background: linear-gradient(90deg, rgba(47, 124, 246, 0), #2f7cf6, #00e6b1, #ffb84d, rgba(255, 184, 77, 0));
+        clip-path: polygon(0% 54%, 7% 48%, 13% 62%, 20% 38%, 28% 58%, 35% 46%, 43% 66%, 51% 35%, 59% 58%, 67% 44%, 75% 68%, 83% 42%, 91% 58%, 100% 52%, 100% 63%, 91% 69%, 83% 54%, 75% 80%, 67% 56%, 59% 70%, 51% 47%, 43% 78%, 35% 58%, 28% 70%, 20% 50%, 13% 74%, 7% 60%, 0% 66%);
+        opacity: 0.86;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 10px;
+      }
+
+      .step {
+        padding: 26px;
+        border: 1px solid rgba(234, 245, 255, 0.16);
+        border-radius: 28px;
+        background: rgba(22, 32, 51, 0.78);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      }
+
+      .step b {
+        display: block;
+        color: #00e6b1;
+        font-family: "League Gothic", sans-serif;
+        font-size: 32px;
+        font-weight: 400;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .step strong {
+        display: block;
+        margin-top: 18px;
+        font-size: 46px;
+        font-weight: 900;
+        line-height: 1.05;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 14px;
+        color: #a6b6c8;
+        font-size: 22px;
+        line-height: 1.42;
+      }
+
+      .repo-label {
+        display: inline-flex;
+        align-self: flex-start;
+        gap: 12px;
+        padding: 14px 18px;
+        border: 1px solid rgba(234, 245, 255, 0.18);
+        border-radius: 999px;
+        color: #a6b6c8;
+        background: rgba(22, 32, 51, 0.82);
+        font-family: "Montserrat", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+
+      .transition-wipe {
+        z-index: 90;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .wipe-bar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -32%;
+        width: 46%;
+        background: #2f7cf6;
+        box-shadow: 0 0 70px rgba(47, 124, 246, 0.58);
+      }
+
+      .wipe-bar:nth-child(2) {
+        left: -44%;
+        width: 34%;
+        background: #00e6b1;
+        box-shadow: 0 0 70px rgba(0, 230, 177, 0.5);
+      }
+
+      .wipe-bar:nth-child(3) {
+        left: -20%;
+        width: 18%;
+        background: #ffb84d;
+        box-shadow: 0 0 70px rgba(255, 184, 77, 0.38);
+      }
+
+      .final-dim {
+        z-index: 95;
+        inset: 0;
+        background: #070b12;
+        opacity: 0;
+        pointer-events: none;
       }
     </style>
   </head>
@@ -657,248 +497,205 @@
       data-width="1920"
       data-height="1080"
     >
-      <div id="bg-layer" class="clip full" data-start="0" data-duration="36" data-track-index="0">
-        <div class="stage"></div>
-        <div class="grid"></div>
-        <div class="orb orb-a"></div>
-        <div class="orb orb-b"></div>
+      <div id="background" class="clip full background" data-start="0" data-duration="36" data-track-index="0">
+        <div class="ghost-word" aria-hidden="true"></div>
+        <div id="signal-beam" class="signal-beam"></div>
       </div>
 
-      <div class="clip progress-shell" data-start="0" data-duration="36" data-track-index="8">
-        <div id="progress-fill" class="progress-fill"></div>
+      <div id="brand-mark" class="clip brand-mark" data-start="0" data-duration="36" data-track-index="8">
+        <span class="brand-dot"></span>
+        GeminiVRM / Expo Loop
       </div>
 
-      <div id="brand-chip" class="clip brand-chip" data-start="0" data-duration="36" data-track-index="9">
-        <strong>GeminiVRM</strong> / expo loop
+      <section id="scene-1" class="clip scene" data-start="0" data-duration="7" data-track-index="1">
+        <div class="scene-shell">
+          <div class="copy">
+            <div class="kicker">Live Avatar Demo</div>
+            <h1 class="display">
+              <span class="display-line">AIアバターが、</span>
+              <span class="display-line">目の前で返事する。</span>
+            </h1>
+            <p class="subcopy">GeminiVRMは、会話AIを「見える体験」に変えるブラウザデモです。</p>
+            <div class="signal-row">
+              <span class="signal-chip">Text</span>
+              <span class="signal-chip">Mic</span>
+              <span class="signal-chip">VRM Avatar</span>
+              <span class="signal-chip">Live Demo</span>
+            </div>
+          </div>
+          <div class="visual dual">
+            <div class="screen wide-screen s1-main">
+              <div class="media ogp"></div>
+            </div>
+            <div class="screen phone s1-phone">
+              <div class="media speaking"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-2" class="clip scene" data-start="7" data-duration="7" data-track-index="1">
+        <div class="scene-shell reverse">
+          <div class="visual">
+            <div class="screen wide-screen s2-screen">
+              <div class="media contain hero-svg"></div>
+            </div>
+          </div>
+          <div class="copy">
+            <div class="kicker">Interaction</div>
+            <div class="verb-grid">
+              <div class="verb s2-word"><span>話す</span><em>Mic</em></div>
+              <div class="verb s2-word"><span>入力する</span><em>Text</em></div>
+              <div class="verb s2-word"><span>すぐ返る</span><em>Live</em></div>
+            </div>
+            <p class="subcopy">来場者が操作した瞬間に、返事が動きとして見えます。</p>
+            <div class="wave s2-wave"><div class="wave-line"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-3" class="clip scene" data-start="14" data-duration="7" data-track-index="1">
+        <div class="scene-shell">
+          <div class="copy">
+            <div class="kicker">Podcast Mode</div>
+            <h2 class="display">
+              <span class="display-line">2人の掛け合いで、</span>
+              <span class="display-line">足が止まる。</span>
+            </h2>
+            <p class="subcopy">テーマを1つ入れるだけ。YukitoとKiyokaが交互に話し、展示にリズムが生まれます。</p>
+          </div>
+          <div class="visual dual">
+            <div class="screen small-screen s3-ready">
+              <div class="media contain ready"></div>
+            </div>
+            <div class="screen phone s3-phone">
+              <div class="media speaking"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-4" class="clip scene" data-start="21" data-duration="7" data-track-index="1">
+        <div class="scene-shell reverse">
+          <div class="visual">
+            <div class="screen wide-screen s4-screen">
+              <div class="media ogp"></div>
+            </div>
+          </div>
+          <div class="copy">
+            <div class="kicker">Booth Flow</div>
+            <h2 class="display wide">
+              <span class="display-line">起動、選択、見せる。</span>
+            </h2>
+            <div class="steps">
+              <div class="step s4-step"><b>Step 1</b><strong>起動</strong><span>まずはStart。</span></div>
+              <div class="step s4-step"><b>Step 2</b><strong>選択</strong><span>1人会話か2人トーク。</span></div>
+              <div class="step s4-step"><b>Step 3</b><strong>見せる</strong><span>会場でそのまま流す。</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-5" class="clip scene" data-start="28" data-duration="8" data-track-index="1">
+        <div class="scene-shell">
+          <div class="copy">
+            <div class="kicker">GeminiVRM</div>
+            <h2 class="display">
+              <span class="display-line">会話AIを、</span>
+              <span class="display-line">見える体験へ。</span>
+            </h2>
+            <div class="stage-card s5-card">
+              <strong>展示会で流すだけでも、価値が伝わる。</strong>
+              <span>このリポジトリは、AIの返事を「目で見て分かるデモ」に変えてくれます。</span>
+            </div>
+            <div class="repo-label s5-label">Sunwood-ai-labs / GeminiVRM</div>
+          </div>
+          <div class="visual">
+            <div class="screen wide-screen s5-screen">
+              <div class="media ogp"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="wipe-1" class="clip transition-wipe" data-start="6.65" data-duration="0.72" data-track-index="7">
+        <div class="wipe-bar"></div><div class="wipe-bar"></div><div class="wipe-bar"></div>
+      </div>
+      <div id="wipe-2" class="clip transition-wipe" data-start="13.65" data-duration="0.72" data-track-index="7">
+        <div class="wipe-bar"></div><div class="wipe-bar"></div><div class="wipe-bar"></div>
+      </div>
+      <div id="wipe-3" class="clip transition-wipe" data-start="20.65" data-duration="0.72" data-track-index="7">
+        <div class="wipe-bar"></div><div class="wipe-bar"></div><div class="wipe-bar"></div>
+      </div>
+      <div id="wipe-4" class="clip transition-wipe" data-start="27.65" data-duration="0.72" data-track-index="7">
+        <div class="wipe-bar"></div><div class="wipe-bar"></div><div class="wipe-bar"></div>
       </div>
 
-      <section id="scene-hero" class="clip scene" data-start="0" data-duration="7" data-track-index="1">
-        <div class="scene-hero-grid">
-          <div class="hero-copy">
-            <div class="eyebrow">GeminiVRM</div>
-            <h1 class="title">話しかけると、<br />アバターが答える。</h1>
-            <p class="subtitle">
-              このリポジトリは、<br />
-              ブラウザで動く AI アバター体験を<br />
-              そのまま展示できるデモです。
-            </p>
-            <div class="chips">
-              <div class="chip accent">Browser-first</div>
-              <div class="chip">VRM</div>
-              <div class="chip">Gemini Live</div>
-              <div class="chip">展示デモ</div>
-            </div>
-          </div>
-          <div class="hero-visual">
-            <div class="panel hero-wide hero-item">
-              <div class="media-fill bg-ogp"></div>
-            </div>
-            <div class="phone-frame hero-phone hero-item">
-              <div class="media-fill bg-speaking"></div>
-            </div>
-            <div class="float-card hero-card-a hero-item">
-              <strong>見てすぐ伝わる</strong>
-              <span>会話 AI を、画面の中でそのまま見せられます。</span>
-            </div>
-            <div class="float-card hero-card-b hero-item">
-              <strong>初心者にも親切</strong>
-              <span>文字でも、マイクでも、触りながら理解しやすい構成です。</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-live" class="clip scene" data-start="7" data-duration="7" data-track-index="1">
-        <div class="scene-live-grid">
-          <div class="panel scene-wide live-shot">
-            <div class="media-fill bg-repohero"></div>
-          </div>
-          <div class="scene-copy">
-            <div class="eyebrow">Live Response</div>
-            <h2 class="title">テキストでも、<br />マイクでも。</h2>
-            <p class="subtitle">
-              来場者が話しかけると、<br />
-              その場で返事が返ってくる。<br />
-              それが一番の見せ場です。
-            </p>
-            <div class="bullet-stack">
-              <div class="card bullet-card live-item">
-                <div class="num-box">A</div>
-                <div>
-                  <strong>文字入力で試せる</strong>
-                  <span>まずは短いテキストからでも体験できます。</span>
-                </div>
-              </div>
-              <div class="card bullet-card live-item">
-                <div class="num-box">B</div>
-                <div>
-                  <strong>マイクでも見せられる</strong>
-                  <span>対話デモらしいライブ感を、そのまま出せます。</span>
-                </div>
-              </div>
-            </div>
-            <div class="wave-strip live-item">
-              <strong>話すと、口パクも連動。</strong>
-              <div class="wave-line"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-podcast" class="clip scene" data-start="14" data-duration="7" data-track-index="1">
-        <div class="scene-podcast-grid">
-          <div class="podcast-copy">
-            <div class="eyebrow">Podcast Mode</div>
-            <h2 class="title">2人の掛け合いで、<br />場が盛り上がる。</h2>
-            <p class="subtitle">
-              Topic を入れると、<br />
-              Yukito と Kiyoka が交互に話します。<br />
-              展示会のループ映像にも向いたモードです。
-            </p>
-            <div class="topic-bubble">例: 春に合う作業用BGMって？</div>
-          </div>
-          <div class="podcast-visual">
-            <div class="panel podcast-side podcast-item">
-              <div class="media-fill bg-ready"></div>
-            </div>
-            <div class="phone-frame podcast-main podcast-item">
-              <div class="media-fill bg-speaking"></div>
-            </div>
-            <div class="podcast-tag podcast-item">
-              <strong>1人トークだけじゃない</strong>
-              <span>掛け合いがあると、足を止めてもらいやすくなります。</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-steps" class="clip scene" data-start="21" data-duration="7" data-track-index="1">
-        <div class="scene-steps-grid">
-          <div class="scene-copy">
-            <div class="eyebrow">Simple Setup</div>
-            <h2 class="title">準備もシンプル。</h2>
-            <p class="subtitle">
-              難しい説明より、<br />
-              「起動して、選んで、見せる」で十分。<br />
-              展示ではこの短さが効きます。
-            </p>
-            <div class="step-row">
-              <div class="card step-card step-item">
-                <div class="step-label">Step 1</div>
-                <strong>起動する</strong>
-                <span>まずは Start。</span>
-              </div>
-              <div class="card step-card step-item">
-                <div class="step-label">Step 2</div>
-                <strong>モードを選ぶ</strong>
-                <span>1人会話か 2人トーク。</span>
-              </div>
-              <div class="card step-card step-item">
-                <div class="step-label">Step 3</div>
-                <strong>見せる</strong>
-                <span>話しかけるだけでOK。</span>
-              </div>
-            </div>
-          </div>
-          <div class="steps-visual">
-            <div class="panel steps-wide steps-item">
-              <div class="media-fill bg-ogp"></div>
-            </div>
-            <div class="card steps-note steps-item">
-              <strong>ブラウザで完結しやすい</strong>
-              <span>ローカル中心で始めやすく、展示準備のハードルを下げられます。</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="scene-close" class="clip scene" data-start="28" data-duration="8" data-track-index="1">
-        <div class="scene-close-grid">
-          <div class="scene-copy">
-            <div class="eyebrow">Closing</div>
-            <h2 class="title">GeminiVRMで、<br />会話AIが見える。</h2>
-            <div class="close-message close-item">
-              <strong>展示会で流すだけでも、<br />価値がすぐ伝わる。</strong>
-              <span>
-                このリポジトリは、AI の返事を<br />
-                「見た目のあるデモ」に変えてくれます。
-              </span>
-            </div>
-            <div class="close-badge-row close-item">
-              <div class="close-mini">AI Avatar</div>
-              <div class="close-mini">VRM</div>
-              <div class="close-mini">Gemini Live</div>
-              <div class="close-mini">Podcast mode</div>
-            </div>
-          </div>
-          <div class="close-visual">
-            <div class="panel close-wide close-item">
-              <div class="media-fill bg-ogp"></div>
-            </div>
-            <div class="card close-note close-item">
-              <strong>Repo</strong>
-              <span>Sunwood-ai-labs / GeminiVRM</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div id="final-dim" class="clip final-dim" data-start="0" data-duration="36" data-track-index="10"></div>
     </div>
 
     <script>
       window.__timelines = window.__timelines || {};
-      const tl = gsap.timeline({ paused: true, defaults: { ease: "power2.out" } });
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
 
-      tl.from("#progress-fill", {
-        scaleX: 0,
-        duration: 36,
-        ease: "none",
-        transformOrigin: "left center",
-      }, 0);
+      tl.set("#scene-1", { autoAlpha: 1 }, 0);
+      tl.set("#scene-2", { autoAlpha: 1 }, 7);
+      tl.set("#scene-1", { autoAlpha: 0 }, 7.38);
+      tl.set("#scene-3", { autoAlpha: 1 }, 14);
+      tl.set("#scene-2", { autoAlpha: 0 }, 14.38);
+      tl.set("#scene-4", { autoAlpha: 1 }, 21);
+      tl.set("#scene-3", { autoAlpha: 0 }, 21.38);
+      tl.set("#scene-5", { autoAlpha: 1 }, 28);
+      tl.set("#scene-4", { autoAlpha: 0 }, 28.38);
 
-      tl.to(".orb-a", { x: 80, y: 40, duration: 36, ease: "sine.inOut" }, 0);
-      tl.to(".orb-b", { x: -90, y: -36, duration: 36, ease: "sine.inOut" }, 0);
-      tl.from("#brand-chip", { y: -22, opacity: 0, duration: 0.8 }, 0.2);
+      tl.from("#signal-beam", { scaleX: 0, duration: 0.8, ease: "expo.out", transformOrigin: "left center" }, 0.15);
+      tl.to("#signal-beam", { scaleX: 0.92, duration: 35, ease: "none", transformOrigin: "left center" }, 1.0);
+      tl.from("#brand-mark", { opacity: 0, y: -18, scale: 0.96, duration: 0.55, ease: "power2.out" }, 0.3);
+      tl.to(".ghost-word", { x: -40, y: 18, duration: 36, ease: "sine.inOut" }, 0);
 
-      tl.from("#scene-hero .eyebrow", { y: 20, opacity: 0, duration: 0.55 }, 0.1);
-      tl.from("#scene-hero .title", { y: 34, opacity: 0, duration: 0.8 }, 0.28);
-      tl.from("#scene-hero .subtitle", { y: 24, opacity: 0, duration: 0.72 }, 0.5);
-      tl.from("#scene-hero .chip", { y: 18, opacity: 0, duration: 0.5, stagger: 0.08 }, 0.78);
-      tl.from("#scene-hero .hero-item", { x: 30, y: 24, opacity: 0, duration: 0.75, stagger: 0.12 }, 0.66);
-      tl.to("#scene-hero .hero-wide", { y: -8, scale: 1.016, duration: 5.2, ease: "sine.inOut" }, 1.3);
-      tl.to("#scene-hero .hero-phone", { y: -12, rotate: -0.5, duration: 5.0, ease: "sine.inOut" }, 1.45);
-      tl.to("#scene-hero", { opacity: 0, y: -16, duration: 0.45, ease: "power1.in" }, 6.55);
+      tl.from("#scene-1 .kicker", { opacity: 0, y: 28, duration: 0.45, ease: "back.out(1.6)" }, 0.25);
+      tl.from("#scene-1 .display-line", { opacity: 0, y: 64, duration: 0.72, stagger: 0.08, ease: "expo.out" }, 0.42);
+      tl.from("#scene-1 .subcopy", { opacity: 0, y: 28, duration: 0.52, ease: "power2.out" }, 0.82);
+      tl.from("#scene-1 .signal-chip", { opacity: 0, scale: 0.88, y: 16, duration: 0.38, stagger: 0.07, ease: "back.out(1.9)" }, 1.04);
+      tl.from("#scene-1 .s1-main", { opacity: 0, x: 70, scale: 0.95, duration: 0.78, ease: "power4.out" }, 0.5);
+      tl.from("#scene-1 .s1-phone", { opacity: 0, x: 46, y: 34, scale: 0.94, duration: 0.72, ease: "back.out(1.35)" }, 0.84);
+      tl.to("#scene-1 .s1-main", { scale: 1.025, y: -8, duration: 5.4, ease: "sine.inOut" }, 1.35);
+      tl.to("#scene-1 .s1-phone", { y: -10, duration: 5.0, ease: "sine.inOut" }, 1.65);
 
-      tl.from("#scene-live .eyebrow", { y: 20, opacity: 0, duration: 0.5 }, 7.05);
-      tl.from("#scene-live .title", { y: 32, opacity: 0, duration: 0.76 }, 7.22);
-      tl.from("#scene-live .subtitle", { y: 22, opacity: 0, duration: 0.68 }, 7.45);
-      tl.from("#scene-live .live-shot", { x: -34, opacity: 0, scale: 0.96, duration: 0.82 }, 7.4);
-      tl.from("#scene-live .live-item", { x: 26, y: 20, opacity: 0, duration: 0.65, stagger: 0.12 }, 7.76);
-      tl.to("#scene-live .live-shot", { y: -7, scale: 1.014, duration: 5.0, ease: "sine.inOut" }, 8.26);
-      tl.to("#scene-live", { opacity: 0, y: -16, duration: 0.45, ease: "power1.in" }, 13.55);
+      tl.from("#scene-2 .s2-screen", { opacity: 0, x: -64, scale: 0.94, duration: 0.7, ease: "power4.out" }, 7.15);
+      tl.from("#scene-2 .kicker", { opacity: 0, y: 22, duration: 0.42, ease: "back.out(1.6)" }, 7.22);
+      tl.from("#scene-2 .s2-word", { opacity: 0, x: 52, scale: 0.94, duration: 0.46, stagger: 0.11, ease: "expo.out" }, 7.45);
+      tl.from("#scene-2 .subcopy", { opacity: 0, y: 24, duration: 0.5, ease: "power2.out" }, 8.05);
+      tl.from("#scene-2 .s2-wave", { opacity: 0, y: 28, scale: 0.96, duration: 0.5, ease: "power3.out" }, 8.26);
+      tl.to("#scene-2 .s2-screen", { scale: 1.02, y: -6, duration: 5.2, ease: "sine.inOut" }, 8.0);
+      tl.to("#scene-2 .wave-line", { x: 40, duration: 5.2, ease: "sine.inOut" }, 8.35);
 
-      tl.from("#scene-podcast .eyebrow", { y: 20, opacity: 0, duration: 0.5 }, 14.05);
-      tl.from("#scene-podcast .title", { y: 32, opacity: 0, duration: 0.76 }, 14.22);
-      tl.from("#scene-podcast .subtitle", { y: 22, opacity: 0, duration: 0.68 }, 14.46);
-      tl.from("#scene-podcast .topic-bubble", { y: 16, opacity: 0, duration: 0.55 }, 14.78);
-      tl.from("#scene-podcast .podcast-item", { x: 32, y: 24, opacity: 0, duration: 0.72, stagger: 0.12 }, 14.5);
-      tl.to("#scene-podcast .podcast-main", { y: -10, rotate: -1, duration: 5.0, ease: "sine.inOut" }, 15.15);
-      tl.to("#scene-podcast .podcast-side", { y: -6, scale: 1.015, duration: 5.0, ease: "sine.inOut" }, 15.1);
-      tl.to("#scene-podcast", { opacity: 0, y: -16, duration: 0.45, ease: "power1.in" }, 20.55);
+      tl.from("#scene-3 .kicker", { opacity: 0, y: 28, duration: 0.42, ease: "back.out(1.6)" }, 14.18);
+      tl.from("#scene-3 .display-line", { opacity: 0, y: 56, duration: 0.68, stagger: 0.08, ease: "expo.out" }, 14.34);
+      tl.from("#scene-3 .subcopy", { opacity: 0, y: 26, duration: 0.5, ease: "power2.out" }, 14.82);
+      tl.from("#scene-3 .s3-ready", { opacity: 0, x: 60, y: -20, scale: 0.94, duration: 0.66, ease: "power4.out" }, 14.5);
+      tl.from("#scene-3 .s3-phone", { opacity: 0, x: 70, y: 34, scale: 0.92, duration: 0.78, ease: "back.out(1.25)" }, 14.82);
+      tl.to("#scene-3 .s3-phone", { scale: 1.02, y: -10, duration: 5.0, ease: "sine.inOut" }, 15.72);
 
-      tl.from("#scene-steps .eyebrow", { y: 20, opacity: 0, duration: 0.5 }, 21.05);
-      tl.from("#scene-steps .title", { y: 30, opacity: 0, duration: 0.74 }, 21.22);
-      tl.from("#scene-steps .subtitle", { y: 20, opacity: 0, duration: 0.66 }, 21.44);
-      tl.from("#scene-steps .step-item", { y: 22, opacity: 0, duration: 0.58, stagger: 0.1 }, 21.72);
-      tl.from("#scene-steps .steps-item", { x: 28, y: 22, opacity: 0, duration: 0.72, stagger: 0.14 }, 21.58);
-      tl.to("#scene-steps .steps-wide", { y: -8, scale: 1.015, duration: 5.0, ease: "sine.inOut" }, 22.2);
-      tl.to("#scene-steps", { opacity: 0, y: -16, duration: 0.45, ease: "power1.in" }, 27.55);
+      tl.from("#scene-4 .s4-screen", { opacity: 0, x: -62, scale: 0.94, duration: 0.72, ease: "power4.out" }, 21.15);
+      tl.from("#scene-4 .kicker", { opacity: 0, y: 24, duration: 0.42, ease: "back.out(1.6)" }, 21.28);
+      tl.from("#scene-4 .display-line", { opacity: 0, y: 52, duration: 0.64, ease: "expo.out" }, 21.45);
+      tl.from("#scene-4 .s4-step", { opacity: 0, y: 30, scale: 0.95, duration: 0.48, stagger: 0.1, ease: "back.out(1.6)" }, 21.9);
+      tl.to("#scene-4 .s4-screen", { scale: 1.022, y: -7, duration: 5.2, ease: "sine.inOut" }, 22.0);
 
-      tl.from("#scene-close .eyebrow", { y: 20, opacity: 0, duration: 0.5 }, 28.05);
-      tl.from("#scene-close .title", { y: 32, opacity: 0, duration: 0.78 }, 28.22);
-      tl.from("#scene-close .close-item", { x: 26, y: 22, opacity: 0, duration: 0.7, stagger: 0.12 }, 28.6);
-      tl.to("#scene-close .close-wide", { y: -8, scale: 1.015, duration: 5.8, ease: "sine.inOut" }, 29.2);
-      tl.to("#scene-close", { opacity: 0.22, duration: 0.9, ease: "power1.in" }, 35.0);
-      tl.to("#brand-chip", { opacity: 0.35, duration: 0.8 }, 35.0);
+      tl.from("#scene-5 .kicker", { opacity: 0, y: 24, duration: 0.44, ease: "back.out(1.6)" }, 28.18);
+      tl.from("#scene-5 .display-line", { opacity: 0, y: 60, duration: 0.7, stagger: 0.09, ease: "expo.out" }, 28.35);
+      tl.from("#scene-5 .s5-card", { opacity: 0, y: 30, scale: 0.96, duration: 0.58, ease: "power3.out" }, 28.95);
+      tl.from("#scene-5 .s5-label", { opacity: 0, x: -20, duration: 0.42, ease: "power2.out" }, 29.26);
+      tl.from("#scene-5 .s5-screen", { opacity: 0, x: 66, scale: 0.95, duration: 0.72, ease: "power4.out" }, 28.55);
+      tl.to("#scene-5 .s5-screen", { scale: 1.024, y: -8, duration: 6.2, ease: "sine.inOut" }, 29.3);
+
+      for (const id of ["#wipe-1", "#wipe-2", "#wipe-3", "#wipe-4"]) {
+        const start = Number(document.querySelector(id).dataset.start);
+        tl.fromTo(`${id} .wipe-bar`, { x: -2600 }, { x: 2900, duration: 0.72, stagger: 0.045, ease: "power4.inOut" }, start);
+      }
+
+      tl.to("#final-dim", { opacity: 1, duration: 0.75, ease: "power1.inOut" }, 35.15);
 
       window.__timelines["main"] = tl;
     </script>
