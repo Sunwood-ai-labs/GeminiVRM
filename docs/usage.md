@@ -17,6 +17,7 @@ title: Usage Guide
 - `Push to talk` keeps the current click-to-start, click-to-send voice turn flow
 - `Hands-free` keeps the microphone open and lets Gemini reply automatically after you pause
 - open `Settings` to switch between the two modes without leaving `Character chat`
+- in `Podcast mode`, `Hands-free` enables the microphone button as a listener-interruption channel; completed listener speech is queued for the next host turn
 
 ## Podcast Mode
 
@@ -31,6 +32,7 @@ Use this flow when you want Yukito and Kiyoka to alternate short Gemini Live tur
 Important notes:
 
 - podcast mode is a turn-based back-and-forth, not simultaneous duet playback
+- hands-free listener interruptions are handled on the next host turn, not by cutting off an already-running Gemini request mid-sentence
 - later turns relay the previous speaker's audio into Gemini Live when possible
 - if a prepared relay path fails, GeminiVRM now stops on the exact Gemini Live
   error instead of silently switching to transcript-driven continuation or an

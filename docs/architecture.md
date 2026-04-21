@@ -13,7 +13,7 @@ The current architecture optimizes for:
 
 ## Runtime Flow
 
-1. The user sends a prompt from the main page, either as typed text, a push-to-talk microphone turn, or a hands-free microphone session.
+1. The user sends a prompt from the main page, either as typed text, a push-to-talk microphone turn, a hands-free character chat session, or a hands-free podcast listener interruption.
 2. `src/pages/index.tsx` starts streaming playback mode on the active model.
 3. Text turns use `src/features/chat/geminiLiveChat.ts`, push-to-talk turns use `src/features/chat/geminiLiveMicChat.ts`, and hands-free sessions use `src/features/chat/geminiLiveHandsFreeChat.ts` plus `src/features/chat/microphoneCapture.ts`.
 4. The active Gemini Live session forwards transcript updates plus PCM audio chunks.
@@ -37,7 +37,7 @@ The current architecture optimizes for:
 - `src/features/chat/geminiLiveMicChat.ts`
   - direct microphone-to-Gemini Live turn orchestration, history priming, input transcription, and streamed response audio
 - `src/features/chat/geminiLiveHandsFreeChat.ts`
-  - long-lived automatic-VAD Gemini Live session orchestration for hands-free chat
+  - long-lived automatic-VAD Gemini Live session orchestration for hands-free chat and podcast listener interruption capture
 - `src/features/chat/microphoneCapture.ts`
   - browser microphone capture and PCM chunk extraction for live audio turns
 - `src/features/chat/geminiLiveConfig.ts`

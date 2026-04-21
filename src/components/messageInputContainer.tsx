@@ -5,6 +5,7 @@ type Props = {
   isChatProcessing: boolean;
   isMicRecording: boolean;
   isMicAvailable?: boolean;
+  canStartMicWhileProcessing?: boolean;
   placeholder?: string;
   onChatProcessStart: (text: string) => void;
   onToggleMicRecording: () => void;
@@ -14,6 +15,7 @@ export const MessageInputContainer = ({
   isChatProcessing,
   isMicRecording,
   isMicAvailable = true,
+  canStartMicWhileProcessing = false,
   placeholder,
   onChatProcessStart,
   onToggleMicRecording,
@@ -42,6 +44,7 @@ export const MessageInputContainer = ({
       isChatProcessing={isChatProcessing}
       isMicRecording={isMicRecording}
       isMicAvailable={isMicAvailable}
+      canStartMicWhileProcessing={canStartMicWhileProcessing}
       placeholder={placeholder}
       onChangeUserMessage={(event) => setUserMessage(event.target.value)}
       onClickMicButton={onToggleMicRecording}

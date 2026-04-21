@@ -40,6 +40,7 @@ type CreateGeminiLiveHandsFreeSessionParams = {
   systemPrompt: string;
   model?: string;
   voiceName?: string;
+  responseModality?: Modality;
   screenShareSession?: ScreenShareCaptureSession | null;
   onInputTranscript?: (transcript: string) => void;
   onOutputTranscript?: (transcript: string) => void;
@@ -55,6 +56,7 @@ export async function createGeminiLiveHandsFreeSession({
   systemPrompt,
   model = DEFAULT_GEMINI_LIVE_MODEL,
   voiceName = DEFAULT_GEMINI_VOICE_NAME,
+  responseModality = Modality.AUDIO,
   screenShareSession,
   onInputTranscript,
   onOutputTranscript,
@@ -76,24 +78,29 @@ export async function createGeminiLiveHandsFreeSession({
   const historyTurns = buildHistoryTurns(historyMessages);
   const hasScreenShare =
     !!screenShareSession && hasActiveScreenShareSession(screenShareSession);
+  const usesAudioResponse = responseModality === Modality.AUDIO;
   const audioNormalizer = createPcm16MonoNormalizer();
   const sessionConfig = {
-    responseModalities: [Modality.AUDIO],
+    responseModalities: [responseModality],
     mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
     realtimeInputConfig: {
       automaticActivityDetection: {
         disabled: false,
       },
     },
-    speechConfig: {
-      voiceConfig: {
-        prebuiltVoiceConfig: {
-          voiceName: resolvedVoiceName,
-        },
-      },
-    },
+    ...(usesAudioResponse
+      ? {
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: resolvedVoiceName,
+              },
+            },
+          },
+          outputAudioTranscription: {},
+        }
+      : {}),
     inputAudioTranscription: {},
-    outputAudioTranscription: {},
     systemInstruction: prependScreenShareSystemInstruction(
       systemPrompt,
       hasScreenShare,
@@ -134,9 +141,11 @@ export async function createGeminiLiveHandsFreeSession({
     callbacks: {
       onmessage(message: LiveServerMessage) {
         try {
-          collectAudio(message, (chunk) => {
-            onAudioChunk?.(chunk);
-          });
+          if (usesAudioResponse) {
+            collectAudio(message, (chunk) => {
+              onAudioChunk?.(chunk);
+            });
+          }
 
           const nextInputTranscript = getInputTranscriptChunk(message);
           if (nextInputTranscript) {
@@ -147,6 +156,12 @@ export async function createGeminiLiveHandsFreeSession({
           const nextOutputTranscript = getOutputTranscriptChunk(message);
           if (nextOutputTranscript) {
             outputTranscript += nextOutputTranscript;
+            onOutputTranscript?.(outputTranscript);
+          }
+
+          const nextOutputText = getOutputTextChunk(message);
+          if (nextOutputText) {
+            outputTranscript += nextOutputText;
             onOutputTranscript?.(outputTranscript);
           }
 
@@ -326,6 +341,18 @@ function getInputTranscriptChunk(message: LiveServerMessage): string {
 
 function getOutputTranscriptChunk(message: LiveServerMessage): string {
   return message.serverContent?.outputTranscription?.text ?? "";
+}
+
+function getOutputTextChunk(message: LiveServerMessage): string {
+  const parts = message.serverContent?.modelTurn?.parts;
+  if (!parts?.length) {
+    return "";
+  }
+
+  return parts
+    .map((part) => part.text ?? "")
+    .filter(Boolean)
+    .join("");
 }
 
 function decodeBase64(data: string): Uint8Array {

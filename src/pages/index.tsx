@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Modality } from "@google/genai";
 import { PodcastStage, type PodcastViewerRegistry } from "@/components/podcastStage";
 import VrmViewer from "@/components/vrmViewer";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
@@ -56,6 +57,7 @@ import {
 } from "@/features/podcast/geminiLivePodcast";
 import {
   buildPodcastDisplayLog,
+  buildPodcastListenerInterruptPrompt,
   buildPodcastOpeningPrompt,
   buildPodcastRelaySystemPrompt,
   podcastTurnsToGeminiMessages,
@@ -132,6 +134,11 @@ type ActiveHandsFreeTurn = {
   captureSession: MicrophoneCaptureSession;
   liveSession: GeminiLiveHandsFreeSession;
   model: Model | undefined;
+};
+
+type ActivePodcastInterruptListener = {
+  captureSession: MicrophoneCaptureSession;
+  liveSession: GeminiLiveHandsFreeSession;
 };
 
 export default function Home() {
@@ -230,6 +237,9 @@ export default function Home() {
   const screenShareSessionRef = useRef<ScreenShareCaptureSession | null>(null);
   const activeMicrophoneTurnRef = useRef<ActiveMicrophoneTurn | null>(null);
   const activeHandsFreeTurnRef = useRef<ActiveHandsFreeTurn | null>(null);
+  const activePodcastInterruptListenerRef =
+    useRef<ActivePodcastInterruptListener | null>(null);
+  const podcastInterruptQueueRef = useRef<string[]>([]);
 
   interactionModeRef.current = interactionMode;
   podcastTurnCountRef.current = podcastTurnCount;
@@ -669,12 +679,32 @@ export default function Home() {
     activeTurn.model?.stopSpeaking();
   }, []);
 
+  const stopPodcastInterruptListener = useCallback(async (reason?: unknown) => {
+    const activeListener = activePodcastInterruptListenerRef.current;
+    activePodcastInterruptListenerRef.current = null;
+    setIsMicRecording(false);
+
+    if (!activeListener) {
+      return;
+    }
+
+    await activeListener.captureSession.stop().catch(() => {});
+    await activeListener.liveSession.close(reason).catch(() => {});
+  }, []);
+
   useEffect(() => {
     return () => {
       void abortActiveMicrophoneTurn("Page unload stopped microphone chat.");
       void abortActiveHandsFreeTurn("Page unload stopped hands-free chat.");
+      void stopPodcastInterruptListener(
+        "Page unload stopped podcast interruption listener.",
+      );
     };
-  }, [abortActiveHandsFreeTurn, abortActiveMicrophoneTurn]);
+  }, [
+    abortActiveHandsFreeTurn,
+    abortActiveMicrophoneTurn,
+    stopPodcastInterruptListener,
+  ]);
 
   useEffect(() => {
     if (interactionMode !== "chat" && activeHandsFreeTurnRef.current) {
@@ -691,6 +721,14 @@ export default function Home() {
       );
     }
   }, [abortActiveHandsFreeTurn, chatMicMode]);
+
+  useEffect(() => {
+    if (interactionMode !== "podcast" && activePodcastInterruptListenerRef.current) {
+      void stopPodcastInterruptListener(
+        "Podcast interruption listener stopped because conversation mode changed.",
+      );
+    }
+  }, [interactionMode, stopPodcastInterruptListener]);
 
   const appendCompletedChatTurn = useCallback(
     (
@@ -1535,6 +1573,8 @@ export default function Home() {
           const priorTurns = podcastTurnsRef.current;
           const priorMessages = podcastTurnsToGeminiMessages(priorTurns, speakerId);
           const latestPartnerTurn = priorTurns[priorTurns.length - 1];
+          const listenerInterrupt =
+            podcastInterruptQueueRef.current.shift()?.trim() ?? "";
           const currentScreenShareImage = toMessageInputImage(
             activeScreenShareSession?.getLatestFrame(),
             `${speaker.displayName} turn input snapshot`,
@@ -1550,12 +1590,14 @@ export default function Home() {
           const turnStartedAtMs = performance.now();
           let firstAssistantAudioAtMs: number | null = null;
           let responseResolvedAtMs: number | null = null;
-          let responsePath: "opening" | "prepared" | "batch" =
-            latestPartnerTurn == null
-              ? "opening"
-              : preparedSessionForCurrentTurn && usePreparedRelay
-                ? "prepared"
-                : "batch";
+          let responsePath: "opening" | "prepared" | "batch" | "listener-interrupt" =
+            listenerInterrupt
+              ? "listener-interrupt"
+              : latestPartnerTurn == null
+                ? "opening"
+                : preparedSessionForCurrentTurn && usePreparedRelay
+                  ? "prepared"
+                  : "batch";
 
           if (
             preparedSessionForNextTurn &&
@@ -1568,6 +1610,14 @@ export default function Home() {
             preparedSessionForCurrentTurn = null;
           }
           preparedSessionForNextTurn = null;
+
+          if (listenerInterrupt && preparedSessionForCurrentTurn) {
+            closePreparedRelaySession(
+              preparedSessionForCurrentTurn,
+              "Listener interrupted before prepared relay session was consumed.",
+            );
+            preparedSessionForCurrentTurn = null;
+          }
 
           setActivePodcastSpeakerId(speakerId);
           setAssistantSpeakerName(speaker.displayName);
@@ -1585,6 +1635,7 @@ export default function Home() {
             partnerName: partner.displayName,
             responsePath,
             hasLatestPartnerTurn: latestPartnerTurn != null,
+            hasListenerInterrupt: Boolean(listenerInterrupt),
           });
 
           await speakerModel.beginStreamingSpeak(createNeutralScreenplay(""));
@@ -1733,9 +1784,73 @@ export default function Home() {
             }
           };
 
+          const runListenerInterruptResponse = async () => {
+            logPodcastDebugEvent("listener-interrupt-start", {
+              runToken,
+              relayMode,
+              turnIndex,
+              speakerId,
+              speakerName: speaker.displayName,
+              listenerInterrupt,
+            });
+
+            return getGeminiLiveChatResponse({
+              apiKey: geminiApiKey,
+              messages: [
+                ...priorMessages,
+                {
+                  role: "user",
+                  content: buildPodcastListenerInterruptPrompt(
+                    listenerInterrupt,
+                    speaker,
+                    partner,
+                    priorTurns,
+                  ),
+                  name: "LISTENER",
+                  source: "manual",
+                },
+              ],
+              systemPrompt: speaker.systemPrompt,
+              model: geminiModel,
+              voiceName: speaker.voiceName,
+              screenShareSession: activeScreenShareSession,
+              onAudioChunk: (chunk) => {
+                if (!hasStartedAudio) {
+                  hasStartedAudio = true;
+                  firstAssistantAudioAtMs = performance.now();
+                  logPodcastDebugEvent("turn-first-audio", {
+                    runToken,
+                    relayMode,
+                    turnIndex,
+                    speakerId,
+                    speakerName: speaker.displayName,
+                    responsePath,
+                    firstAssistantAudioDelayMs:
+                      firstAssistantAudioAtMs - turnStartedAtMs,
+                  });
+                  setAssistantStatus(
+                    `Podcast ${turnIndex + 1}/${podcastTurnCount} - ${speaker.displayName} answering listener...`,
+                  );
+                }
+                speakerModel.appendPCMChunk(chunk.data, chunk.mimeType);
+                forwardCurrentSpeakerAudioChunk(chunk);
+              },
+              onPartialTranscript: (partialTranscript) => {
+                if (!hasStartedAudio) {
+                  setAssistantStatus(
+                    `Podcast ${turnIndex + 1}/${podcastTurnCount} - ${speaker.displayName} thinking about listener comment...`,
+                  );
+                }
+                setAssistantMessage(partialTranscript);
+              },
+            });
+          };
+
           const response =
-            latestPartnerTurn == null
-              ? await getGeminiLiveChatResponse({
+            listenerInterrupt
+              ? await runListenerInterruptResponse()
+              : latestPartnerTurn == null
+                ? await getGeminiLiveChatResponse({
                   apiKey: geminiApiKey,
                   messages: [
                     ...priorMessages,
@@ -1923,6 +2038,122 @@ export default function Home() {
     ],
   );
 
+  const startPodcastInterruptListener = useCallback(async () => {
+    if (interactionMode !== "podcast") {
+      setAssistantSpeakerName("");
+      setAssistantStatus(
+        "Podcast interruption listener is available only in Podcast mode.",
+      );
+      setAssistantMessage("");
+      return false;
+    }
+
+    if (chatMicMode !== "hands_free") {
+      setAssistantSpeakerName("");
+      setAssistantStatus("Switch microphone mode to Hands-free first.");
+      setAssistantMessage("");
+      return false;
+    }
+
+    if (!geminiApiKey) {
+      setAssistantSpeakerName("");
+      setAssistantMessage("Enter your Gemini API key first.");
+      return false;
+    }
+
+    if (activePodcastInterruptListenerRef.current) {
+      return true;
+    }
+
+    let liveSession: GeminiLiveHandsFreeSession | undefined;
+    let captureSession: MicrophoneCaptureSession | undefined;
+
+    setIsMicRecording(true);
+    setAssistantSpeakerName("YOU");
+    setAssistantStatus("Listening for listener interruptions...");
+
+    try {
+      liveSession = await createGeminiLiveHandsFreeSession({
+        apiKey: geminiApiKey,
+        historyMessages: buildPodcastDisplayLog(podcastTurnsRef.current),
+        systemPrompt: [
+          "You are listening for a human listener interruption during a two-host podcast.",
+          "Do not answer the listener yourself. Keep any text response short.",
+          "The application will use the input audio transcription as the interruption text for the podcast hosts.",
+        ].join(" "),
+        model: geminiModel,
+        responseModality: Modality.TEXT,
+        onInputTranscript: (partialTranscript) => {
+          if (!partialTranscript.trim()) {
+            return;
+          }
+
+          setAssistantSpeakerName("YOU");
+          setAssistantStatus("Listening for listener interruptions...");
+          setAssistantMessage(partialTranscript);
+        },
+        onTurnComplete: (turn) => {
+          const interruptText = turn.inputTranscript.trim();
+          if (!interruptText) {
+            return;
+          }
+
+          podcastInterruptQueueRef.current = [
+            ...podcastInterruptQueueRef.current,
+            interruptText,
+          ].slice(-3);
+          setAssistantSpeakerName("YOU");
+          setAssistantMessage(interruptText);
+
+          if (chatProcessingRef.current) {
+            setAssistantStatus("Listener interruption queued for next host...");
+            return;
+          }
+
+          setAssistantStatus("Starting podcast from listener topic...");
+          void startPodcastConversation(interruptText);
+        },
+        onError: (error) => {
+          activePodcastInterruptListenerRef.current = null;
+          setIsMicRecording(false);
+          setAssistantStatus("Error");
+          setAssistantMessage(error.message);
+        },
+      });
+
+      captureSession = await createMicrophoneCaptureSession({
+        onAudioChunk: (chunk, mimeType) => {
+          liveSession?.sendUserAudioChunk(chunk, mimeType);
+        },
+      });
+
+      activePodcastInterruptListenerRef.current = {
+        captureSession,
+        liveSession,
+      };
+
+      return true;
+    } catch (error) {
+      await captureSession?.stop().catch(() => {});
+      await liveSession?.close(error).catch(() => {});
+      console.error(error);
+      setIsMicRecording(false);
+      setAssistantStatus("Error");
+      setAssistantMessage(
+        error instanceof Error
+          ? error.message
+          : "Podcast interruption listener failed.",
+      );
+      return false;
+    }
+  }, [
+    chatMicMode,
+    geminiApiKey,
+    geminiModel,
+    interactionMode,
+    startPodcastConversation,
+  ]);
+
   const handleSendChat = useCallback(
     async (text: string) => {
       if (text == null || !text.trim()) {
@@ -1945,6 +2176,16 @@ export default function Home() {
   );
 
   const handleToggleMicRecording = useCallback(async () => {
+    if (interactionMode === "podcast") {
+      if (isMicRecording) {
+        await stopPodcastInterruptListener();
+        return;
+      }
+
+      await startPodcastInterruptListener();
+      return;
+    }
+
     if (isMicRecording) {
       if (chatMicMode === "hands_free") {
         await stopHandsFreeChatTurn();
@@ -1963,11 +2204,14 @@ export default function Home() {
     await startMicrophoneChatTurn();
   }, [
     chatMicMode,
+    interactionMode,
     isMicRecording,
     startHandsFreeChatTurn,
     startMicrophoneChatTurn,
+    startPodcastInterruptListener,
     stopHandsFreeChatTurn,
     stopMicrophoneChatTurn,
+    stopPodcastInterruptListener,
   ]);
 
   const dispatchExternalControlCommand = useCallback(
@@ -2635,7 +2879,13 @@ export default function Home() {
       <MessageInputContainer
         isChatProcessing={chatProcessing}
         isMicRecording={isMicRecording}
-        isMicAvailable={interactionMode === "chat"}
+        isMicAvailable={
+          interactionMode === "chat" ||
+          (interactionMode === "podcast" && chatMicMode === "hands_free")
+        }
+        canStartMicWhileProcessing={
+          interactionMode === "podcast" && chatMicMode === "hands_free"
+        }
         placeholder={inputPlaceholder}
         onChatProcessStart={handleSendChat}
         onToggleMicRecording={handleToggleMicRecording}

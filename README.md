@@ -31,7 +31,8 @@ The current build focuses on:
 
 - Stream Gemini Live transcript and audio in the browser for character chat
 - Send microphone audio directly into Gemini Live for character chat push-to-talk turns
-- Switch the chat microphone between push-to-talk and hands-free automatic reply mode
+- Switch the microphone between push-to-talk and hands-free automatic reply mode
+- Use hands-free microphone input in podcast mode so a human listener can interject between host turns
 - Switch between `Character chat` and `Podcast mode` from `Settings`
 - Start with bundled `Kiyoka.vrm` and `Yukito.vrm`, or load your own local `.vrm`
 - Tune the live model, single-chat voice, system prompt, podcast turn cap, and per-host podcast voices from the UI
@@ -91,11 +92,12 @@ back to older Gemini Live preview models.
 1. Launch the app and enter a Gemini API key.
 2. Open `Settings` and choose `Character chat` or `Podcast mode`.
 3. In character chat, keep the default `Kiyoka.vrm` avatar or load another VRM, then send a text prompt or use the microphone button.
-4. Open `Settings` if you want to switch the microphone between `Push to talk` and `Hands-free`. In hands-free mode, Gemini replies automatically after you pause.
+4. Open `Settings` if you want to switch the microphone between `Push to talk` and `Hands-free`. In hands-free character chat, Gemini replies automatically after you pause.
 5. In podcast mode, enter one topic and let Yukito and Kiyoka alternate short audio turns until the configured turn cap is reached.
-6. Open `Settings` -> `Podcast settings` if you want to change the max loop count or podcast-only voice routing.
-7. Use `Settings` to tune the live model, chat voice, microphone mode, system prompt, idle motion, and other core runtime settings.
-8. If you want live streaming support, open `Settings` -> `Streaming` -> `YouTube relay`, use `NEXT_PUBLIC_GOOGLE_CLIENT_ID` or paste a Google OAuth client ID into the page, sign in with Google, pick an active or upcoming broadcast, turn relay on, and toggle auto-reply separately if you want Gemini to answer incoming comments automatically while streaming this app window through YouTube Live Control Room or OBS.
+6. In podcast mode with `Hands-free` enabled, click the microphone button to listen for human interjections. Captured listener speech is queued for the next host turn.
+7. Open `Settings` -> `Podcast settings` if you want to change the max loop count or podcast-only voice routing.
+8. Use `Settings` to tune the live model, chat voice, microphone mode, system prompt, idle motion, and other core runtime settings.
+9. If you want live streaming support, open `Settings` -> `Streaming` -> `YouTube relay`, use `NEXT_PUBLIC_GOOGLE_CLIENT_ID` or paste a Google OAuth client ID into the page, sign in with Google, pick an active or upcoming broadcast, turn relay on, and toggle auto-reply separately if you want Gemini to answer incoming comments automatically while streaming this app window through YouTube Live Control Room or OBS.
 
 ## Project Structure
 

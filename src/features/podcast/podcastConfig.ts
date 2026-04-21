@@ -95,6 +95,23 @@ export function buildPodcastRelaySystemPrompt(
     .join("\n\n");
 }
 
+export function buildPodcastListenerInterruptPrompt(
+  listenerMessage: string,
+  speaker: PodcastParticipant,
+  partner: PodcastParticipant,
+  turns: PodcastTurn[]
+): string {
+  const recentConversation = formatRecentConversation(turns);
+
+  return [
+    `A human listener just interrupted the podcast while ${speaker.displayName} and ${partner.displayName} were talking.`,
+    `Listener interruption:\n${listenerMessage.trim()}`,
+    `Recent conversation:\n${recentConversation}`,
+    `${speaker.displayName} should respond directly to the listener first, then gently bring the podcast back on track with ${partner.displayName}.`,
+    "Keep the response natural Japanese and concise, about 1-3 sentences.",
+  ].join("\n\n");
+}
+
 export function buildPodcastDisplayLog(turns: PodcastTurn[]): Message[] {
   return turns.map((turn) => ({
     role: "assistant",

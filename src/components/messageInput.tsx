@@ -5,6 +5,7 @@ type Props = {
   isMicRecording: boolean;
   isChatProcessing: boolean;
   isMicAvailable?: boolean;
+  canStartMicWhileProcessing?: boolean;
   placeholder?: string;
   onChangeUserMessage: (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -18,13 +19,16 @@ export const MessageInput = ({
   isMicRecording,
   isChatProcessing,
   isMicAvailable = true,
+  canStartMicWhileProcessing = false,
   placeholder = "Type a message",
   onChangeUserMessage,
   onClickMicButton,
   onClickSendButton,
 }: Props) => {
   const isTextInputDisabled = isChatProcessing || isMicRecording;
-  const isMicButtonDisabled = !isMicAvailable || (isChatProcessing && !isMicRecording);
+  const isMicButtonDisabled =
+    !isMicAvailable ||
+    (isChatProcessing && !isMicRecording && !canStartMicWhileProcessing);
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-12 pb-12 sm:px-16 sm:pb-16">
