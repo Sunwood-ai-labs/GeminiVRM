@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Modality } from "@google/genai";
 import { PodcastStage, type PodcastViewerRegistry } from "@/components/podcastStage";
 import VrmViewer from "@/components/vrmViewer";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
@@ -2082,7 +2081,6 @@ export default function Home() {
           "The application will use the input audio transcription as the interruption text for the podcast hosts.",
         ].join(" "),
         model: geminiModel,
-        responseModality: Modality.TEXT,
         onInputTranscript: (partialTranscript) => {
           if (!partialTranscript.trim()) {
             return;
