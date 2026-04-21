@@ -234,7 +234,9 @@
 
       .screen {
         position: relative;
-        height: 620px;
+        width: 100%;
+        aspect-ratio: 2 / 1;
+        height: auto;
         overflow: hidden;
         border: 1px solid rgba(234, 245, 255, 0.16);
         border-radius: 34px;
@@ -245,16 +247,24 @@
       }
 
       .screen.compact {
-        height: 520px;
+        width: 336px;
+        height: 700px;
+        justify-self: end;
+        aspect-ratio: auto;
       }
 
       .screen.phone {
         width: 360px;
-        height: 650px;
+        height: 700px;
         justify-self: center;
         padding: 12px;
         border-radius: 46px;
         background: linear-gradient(180deg, #2b3548, #05070d);
+        aspect-ratio: auto;
+      }
+
+      .screen.diagram {
+        aspect-ratio: 16 / 9;
       }
 
       .phone .media {
@@ -459,7 +469,7 @@
             <p class="body">3Dキャラクターをアプリで動かすための形式です。</p>
           </div>
           <div class="visual">
-            <div class="screen"><div class="media contain repohero"></div></div>
+            <div class="screen diagram"><div class="media contain repohero"></div></div>
           </div>
         </div>
       </section>
