@@ -46,7 +46,7 @@
     "autoprefixer": "^10.4.14",
     "playwright": "^1.58.2",
     "postcss": "^8.4.21",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.4",
     "vitepress": "^1.6.4"
   },
   "engines": {
